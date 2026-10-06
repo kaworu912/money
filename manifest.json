@@ -1,18 +1,19 @@
 {
-    "name": "我們的記帳本",
-    "short_name": "雙人記帳",
+    "name": "班表系統",
+    "short_name": "班表系統",
+    "description": "監所排班與休假管理系統",
     "start_url": "./index.html",
     "display": "standalone",
-    "background_color": "#f4f4f9",
-    "theme_color": "#4CAF50",
+    "background_color": "#f2f4f8",
+    "theme_color": "#1976d2",
     "icons": [
       {
-        "src": "icon-192x192.png",
+        "src": "icon.png",
         "sizes": "192x192",
         "type": "image/png"
       },
       {
-        "src": "icon-512x512.png",
+        "src": "icon.png",
         "sizes": "512x512",
         "type": "image/png"
       }
