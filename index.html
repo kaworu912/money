@@ -32,6 +32,11 @@
         .tab-content { display: none; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 讓四個指標在手機上顯示得更美觀 */
+        .stat-grid { display: flex; justify-content: space-between; text-align: center; font-size: 13px; color: #666; }
+        .stat-grid div { flex: 1; }
+        .stat-val { display: block; font-size: 16px; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -57,12 +62,14 @@
 
         <!-- ================= TAB 1: 記帳首頁 ================= -->
         <div id="tab-home" class="tab-content active">
+            <!-- ⭐ 新版：四欄式儀表板 -->
             <div class="card" style="background-color: #fff9c4; padding: 15px; margin-bottom: 20px;">
-                <h4 style="margin: 0 0 10px 0; color: #333;">📊 本日總計</h4>
-                <div style="display: flex; justify-content: space-around; font-size: 15px;">
-                    <div>支出: <span id="daily-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
-                    <div>收入: <span id="daily-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
-                    <div>結餘: <span id="daily-net" style="font-weight: bold;">$0</span></div>
+                <h4 style="margin: 0 0 15px 0; color: #333;">📊 本日總計</h4>
+                <div class="stat-grid">
+                    <div>支出<span class="stat-val" id="daily-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入<span class="stat-val" id="daily-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>存錢<span class="stat-val" id="daily-saving" style="color: #2196F3; font-weight: bold;">$0</span></div>
+                    <div>結餘<span class="stat-val" id="daily-net" style="font-weight: bold;">$0</span></div>
                 </div>
             </div>
 
@@ -118,10 +125,12 @@
                     <button id="btn-stat-partner" onclick="changeStatView('partner')" style="flex:1; padding: 8px 0; background: #eee; color:#333; border-radius: 8px; font-size: 14px;">另一半</button>
                 </div>
                 
-                <div style="display: flex; justify-content: space-around; font-size: 14px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-                    <div>支出: <span id="query-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
-                    <div>收入: <span id="query-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
-                    <div>結餘: <span id="query-net" style="font-weight: bold;">$0</span></div>
+                <!-- ⭐ 新版：四欄式儀表板 -->
+                <div class="stat-grid" style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                    <div>支出<span class="stat-val" id="query-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入<span class="stat-val" id="query-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>存錢<span class="stat-val" id="query-saving" style="color: #2196F3; font-weight: bold;">$0</span></div>
+                    <div>結餘<span class="stat-val" id="query-net" style="font-weight: bold;">$0</span></div>
                 </div>
 
                 <div style="width: 100%; overflow: hidden; position: relative;">
@@ -157,13 +166,12 @@
             </div>
         </div>
 
-        <!-- ================= ⭐ TAB 3: 獨立關鍵字搜尋 ================= -->
+        <!-- ================= TAB 3: 獨立關鍵字搜尋 ================= -->
         <div id="tab-search" class="tab-content">
             <div class="card">
                 <h4 style="margin-top: 0; margin-bottom: 10px;">🔍 關鍵字搜尋</h4>
                 <input type="text" id="search-keyword" placeholder="輸入關鍵字 (例如：撿到錢)" style="width: 100%; margin-bottom: 10px; background-color: #f9f9f9;" onkeyup="if(event.key==='Enter') executeSearch()">
                 
-                <!-- ⭐ 修改：加入清除按鈕，並稍微壓縮間距讓按鈕更好按 -->
                 <div style="display: flex; gap: 8px;">
                     <select id="search-time-type" onchange="toggleSearchDateInputs()" style="flex: 1; margin: 0; min-width: 0;">
                         <option value="all">所有時間</option>
@@ -182,10 +190,12 @@
 
             <div class="card" id="search-result-summary" style="display: none; padding-bottom: 15px;">
                 <h4 style="margin-top: 0; margin-bottom: 15px; text-align: center;">📈 搜尋總計</h4>
-                <div style="display: flex; justify-content: space-around; font-size: 14px;">
-                    <div>支出: <span id="search-total-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
-                    <div>收入: <span id="search-total-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
-                    <div>結餘: <span id="search-total-net" style="font-weight: bold;">$0</span></div>
+                <!-- ⭐ 新版：四欄式儀表板 -->
+                <div class="stat-grid">
+                    <div>支出<span class="stat-val" id="search-total-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入<span class="stat-val" id="search-total-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>存錢<span class="stat-val" id="search-total-saving" style="color: #2196F3; font-weight: bold;">$0</span></div>
+                    <div>結餘<span class="stat-val" id="search-total-net" style="font-weight: bold;">$0</span></div>
                 </div>
             </div>
 
@@ -221,25 +231,40 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const db = firebase.firestore();
 
+        // ⭐ 新增「儲蓄」分類
         const categories = {
             "餐飲": ["早餐", "午餐", "晚餐", "飲料", "零食", "買菜"],
             "交通": ["捷運", "公車", "計程車", "加油", "停車費", "保養"],
             "居家": ["日用品", "水電瓦斯", "房租/房貸", "電信費"],
             "娛樂": ["電影", "訂閱費", "出遊", "網購", "麻將"],
+            "儲蓄": ["銀行存款", "投資", "存錢筒", "自訂..."],
             "其他": ["自訂..."] 
         };
-        let savedOthers = JSON.parse(localStorage.getItem("customOthers") || "[]");
-        savedOthers.forEach(item => { if (!categories["其他"].includes(item)) categories["其他"].push(item); });
+        
+        // ⭐ 智慧記憶相容更新：讓自訂項目能分開存於「其他」或「儲蓄」
+        let savedOthers = JSON.parse(localStorage.getItem("customOthers") || "{}");
+        if (Array.isArray(savedOthers)) {
+            // 將舊版的陣列轉換為新的物件格式
+            savedOthers = { "其他": savedOthers, "儲蓄": [] };
+            localStorage.setItem("customOthers", JSON.stringify(savedOthers));
+        }
+        if(!savedOthers["其他"]) savedOthers["其他"] = [];
+        if(!savedOthers["儲蓄"]) savedOthers["儲蓄"] = [];
+
+        savedOthers["其他"].forEach(item => { if (!categories["其他"].includes(item)) categories["其他"].push(item); });
+        savedOthers["儲蓄"].forEach(item => { if (!categories["儲蓄"].includes(item)) categories["儲蓄"].push(item); });
 
         let currentNickname = "", unsubscribe = null;
         let actionDocId = "", actionAmount = 0, currentUid = null;
         let homeUnsubscribe = null, queryUnsubscribe = null, dailyUnsubscribe = null, searchUnsubscribe = null;
         let expenseChart = null, inOutChart = null, currentViewDate = new Date();
         let currentStatView = 'all'; 
+        
+        // ⭐ 統計資料結構新增 saving (存錢)
         let statsData = {
-            all: { income: 0, expense: 0, categories: {} },
-            mine: { income: 0, expense: 0, categories: {} },
-            partner: { income: 0, expense: 0, categories: {}, name: "另一半" }
+            all: { income: 0, expense: 0, saving: 0, categories: {} },
+            mine: { income: 0, expense: 0, saving: 0, categories: {} },
+            partner: { income: 0, expense: 0, saving: 0, categories: {}, name: "另一半" }
         };
 
         function initCategories() {
@@ -254,7 +279,7 @@
         function checkSpecialFields() {
             const mv = document.getElementById("main-category").value, sv = document.getElementById("sub-category").value;
             document.getElementById("record-type").style.display = (sv === "麻將" || mv === "其他") ? "block" : "none";
-            document.getElementById("custom-sub-cat").style.display = (mv === "其他" && sv === "自訂...") ? "block" : "none";
+            document.getElementById("custom-sub-cat").style.display = (sv === "自訂...") ? "block" : "none";
         }
 
         function convertToFakeEmail(text) {
@@ -325,19 +350,31 @@
             const mc = document.getElementById("main-category").value; let sc = document.getElementById("sub-category").value; 
             const cSc = document.getElementById("custom-sub-cat").value.trim(); const rAmt = Number(document.getElementById("amount").value.replace(/,/g, ''));
             if (!rAmt || rAmt <= 0) return alert("請輸入金額！");
-            if (mc === "其他" && sc === "自訂...") {
+            
+            // ⭐ 判斷並寫入記憶體
+            if (sc === "自訂...") {
                 if (!cSc) return alert("請輸入自訂名稱"); sc = cSc; 
-                let saved = JSON.parse(localStorage.getItem("customOthers") || "[]");
-                if (!saved.includes(sc)) { saved.push(sc); localStorage.setItem("customOthers", JSON.stringify(saved)); categories["其他"].push(sc); }
+                let saved = JSON.parse(localStorage.getItem("customOthers") || "{}");
+                if (!saved[mc]) saved[mc] = [];
+                if (!saved[mc].includes(sc)) { 
+                    saved[mc].push(sc); 
+                    localStorage.setItem("customOthers", JSON.stringify(saved)); 
+                    categories[mc].push(sc); 
+                }
             }
-            let type = (document.getElementById("sub-category").value === "麻將" || mc === "其他") ? document.getElementById("record-type").value : "expense";
+
+            // ⭐ 若為儲蓄，系統自動設為 saving 型態；其他的按照下拉選單或預設 expense
+            let type = "expense";
+            if (mc === "儲蓄") type = "saving";
+            else if (sc === "麻將" || mc === "其他") type = document.getElementById("record-type").value;
+            
             currentViewDate = new Date(); loadHomeExpenses(auth.currentUser.uid); 
             
             db.collection("users").doc(auth.currentUser.uid).collection("expenses").add({
                 nickname: currentNickname, mainCat: mc, subCat: sc, amount: rAmt, type: type, timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
                 document.getElementById("amount").value = ""; document.getElementById("custom-sub-cat").value = ""; 
-                if (mc === "其他") { updateSubCategories(); document.getElementById("sub-category").value = "自訂..."; checkSpecialFields(); }
+                if (mc === "其他" || mc === "儲蓄") { updateSubCategories(); document.getElementById("sub-category").value = "自訂..."; checkSpecialFields(); }
             }).catch(err => alert("失敗：" + err.message));
         }
         function openActionModal(id, amt) { actionDocId = id; actionAmount = amt; document.getElementById("action-modal").style.display = "flex"; }
@@ -361,13 +398,18 @@
                 else { btn.style.background = '#eee'; btn.style.color = '#333'; }
             }); updateStatDisplay(); 
         }
+        
+        // ⭐ 更新四個維度的統計數字顯示
         function updateStatDisplay() {
             const d = statsData[currentStatView];
-            document.getElementById('query-expense').innerText = "$" + d.expense.toLocaleString('en-US'); document.getElementById('query-income').innerText = "$" + d.income.toLocaleString('en-US');
+            document.getElementById('query-expense').innerText = "$" + d.expense.toLocaleString('en-US'); 
+            document.getElementById('query-income').innerText = "$" + d.income.toLocaleString('en-US');
+            document.getElementById('query-saving').innerText = "$" + d.saving.toLocaleString('en-US');
             const net = d.income - d.expense; const nEl = document.getElementById('query-net');
             nEl.innerText = (net >= 0 ? "+$" : "-$") + Math.abs(net).toLocaleString('en-US'); nEl.style.color = net >= 0 ? "#4CAF50" : "#d32f2f";
             renderExpenseChart(d.categories); renderInOutChart(d.income, d.expense);
         }
+
         function renderExpenseChart(cats) {
             const ctx = document.getElementById('expenseChart'); const lbls = Object.keys(cats), dts = Object.values(cats);
             if(expenseChart) expenseChart.destroy();
@@ -390,21 +432,30 @@
             inOutChart = new Chart(ctx, { type: 'doughnut', data: { labels: lbls, datasets: [{ data: dts, backgroundColor: bg, borderWidth:2, borderColor:'#fff' }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 }, formatter: (v, ctx) => { let p = Math.round((v / ctx.chart._metasets[ctx.datasetIndex].total) * 100); return p < 5 ? null : p + '%'; } }, tooltip: { callbacks: { label: c => `${c.label}: $${c.raw.toLocaleString()}` } } } } });
         }
 
+        // ⭐ 日常總計加入存錢的計算
         function loadDailySummary(uid) {
             if(dailyUnsubscribe) dailyUnsubscribe(); const t = new Date(); t.setHours(0,0,0,0);
             dailyUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp", ">=", t).onSnapshot(snap => {
-                let exp=0, inc=0; snap.forEach(d => { const dt=d.data(); if((dt.type||"expense")==='income') inc+=dt.amount; else exp+=dt.amount; });
-                document.getElementById('daily-expense').innerText = "$"+exp.toLocaleString(); document.getElementById('daily-income').innerText = "$"+inc.toLocaleString();
-                const net = inc-exp; const nEl = document.getElementById('daily-net'); nEl.innerText = (net>=0?"+$":"-$") + Math.abs(net).toLocaleString(); nEl.style.color = net>=0?"#4CAF50":"#d32f2f";
+                let exp=0, inc=0, sav=0; 
+                snap.forEach(d => { 
+                    const dt=d.data(); const tp = dt.type||"expense"; 
+                    if(tp==='income') inc+=dt.amount; else if(tp==='saving') sav+=dt.amount; else exp+=dt.amount; 
+                });
+                document.getElementById('daily-expense').innerText = "$"+exp.toLocaleString(); 
+                document.getElementById('daily-income').innerText = "$"+inc.toLocaleString();
+                document.getElementById('daily-saving').innerText = "$"+sav.toLocaleString();
+                const net = inc-exp; const nEl = document.getElementById('daily-net'); 
+                nEl.innerText = (net>=0?"+$":"-$") + Math.abs(net).toLocaleString(); nEl.style.color = net>=0?"#4CAF50":"#d32f2f";
             });
         }
 
+        // ⭐ RenderList 核心過濾與計算邏輯
         function renderList(snap, lmId, lpId, ptId, mode, kw="") {
             const lm = document.getElementById(lmId), lp = document.getElementById(lpId);
             
             if(mode === 'stats') {
                 document.getElementById('query-result-card').style.display = 'block';
-                statsData = { all: { income:0, expense:0, categories:{} }, mine: { income:0, expense:0, categories:{} }, partner: { income:0, expense:0, categories:{}, name:"另一半" } };
+                statsData = { all: { income:0, expense:0, saving:0, categories:{} }, mine: { income:0, expense:0, saving:0, categories:{} }, partner: { income:0, expense:0, saving:0, categories:{}, name:"另一半" } };
             } else if (mode === 'search') {
                 document.getElementById('search-result-summary').style.display = 'block';
             } else {
@@ -413,36 +464,53 @@
             }
             
             lm.innerHTML=""; lp.innerHTML=""; let fp = false;
-            let searchInc = 0, searchExp = 0;
+            let searchInc = 0, searchExp = 0, searchSav = 0;
 
             snap.forEach(doc => {
                 const dt = doc.data();
                 if(mode === 'search' && kw) { const s = (dt.mainCat+dt.subCat+(dt.nickname||"")).toLowerCase(); if(!s.includes(kw.toLowerCase())) return; }
                 const type = dt.type||"expense", isMine = dt.nickname===currentNickname, amt = dt.amount, cat = dt.mainCat;
                 
+                // ⭐ 將資料依據 type (income, saving, expense) 寫入不同的欄位
                 if(mode === 'stats') {
-                    if(type==='income') statsData.all.income+=amt; else { statsData.all.expense+=amt; statsData.all.categories[cat]=(statsData.all.categories[cat]||0)+amt; }
-                    if(isMine){ if(type==='income') statsData.mine.income+=amt; else { statsData.mine.expense+=amt; statsData.mine.categories[cat]=(statsData.mine.categories[cat]||0)+amt; } }
-                    else { statsData.partner.name = dt.nickname; if(type==='income') statsData.partner.income+=amt; else { statsData.partner.expense+=amt; statsData.partner.categories[cat]=(statsData.partner.categories[cat]||0)+amt; } }
+                    if(type==='income') statsData.all.income+=amt; 
+                    else if(type==='saving') statsData.all.saving+=amt;
+                    else { statsData.all.expense+=amt; statsData.all.categories[cat]=(statsData.all.categories[cat]||0)+amt; }
+                    
+                    if(isMine){ 
+                        if(type==='income') statsData.mine.income+=amt; 
+                        else if(type==='saving') statsData.mine.saving+=amt;
+                        else { statsData.mine.expense+=amt; statsData.mine.categories[cat]=(statsData.mine.categories[cat]||0)+amt; } 
+                    } else { 
+                        statsData.partner.name = dt.nickname; 
+                        if(type==='income') statsData.partner.income+=amt; 
+                        else if(type==='saving') statsData.partner.saving+=amt;
+                        else { statsData.partner.expense+=amt; statsData.partner.categories[cat]=(statsData.partner.categories[cat]||0)+amt; } 
+                    }
                 } else if (mode === 'search') {
-                    if(type === 'income') searchInc += amt; else searchExp += amt;
+                    if(type === 'income') searchInc += amt; 
+                    else if(type === 'saving') searchSav += amt;
+                    else searchExp += amt;
                 }
 
-                const clr = type==="income"?"#4CAF50":"#d32f2f", sgn = type==="income"?"+":"";
+                // 顏色識別：綠色(收入)，藍色(存錢)，紅色(支出)
+                const clr = type==="income" ? "#4CAF50" : (type==="saving" ? "#2196F3" : "#d32f2f");
+                const sgn = type==="income" ? "+" : ""; 
                 let tm=""; if(dt.timestamp){ const dObj=dt.timestamp.toDate(); tm=` <span style="font-size:11px;color:#999;">(${String(dObj.getHours()).padStart(2,'0')}:${String(dObj.getMinutes()).padStart(2,'0')})</span>`; }
                 const btn = `<span style="margin-left:10px;cursor:pointer;color:#888;font-size:18px;font-weight:bold;" onclick="openActionModal('${doc.id}', ${amt})">⋯</span>`;
                 const li = `<li style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:5px;font-size:14px;"><span>${cat}-${dt.subCat}${tm}</span><div><span style="color:${clr};font-weight:bold;">${sgn}$${Number(amt).toLocaleString()}</span>${btn}</div></li>`;
                 
-                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+"的紀錄"; fp=true; } }
+                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+(mode==='search'?"搜尋":"明細"); fp=true; } }
             });
             
-            if(!fp) document.getElementById(ptId).innerText = "另一半的紀錄";
+            if(!fp) document.getElementById(ptId).innerText = "另一半" + (mode==='search'?"搜尋":"明細");
 
             if(mode === 'stats'){ 
                 document.getElementById('btn-stat-partner').innerText = statsData.partner.name; updateStatDisplay(); 
             } else if (mode === 'search') {
                 document.getElementById('search-total-expense').innerText = "$" + searchExp.toLocaleString('en-US');
                 document.getElementById('search-total-income').innerText = "$" + searchInc.toLocaleString('en-US');
+                document.getElementById('search-total-saving').innerText = "$" + searchSav.toLocaleString('en-US');
                 const net = searchInc - searchExp; const nEl = document.getElementById('search-total-net');
                 nEl.innerText = (net >= 0 ? "+$" : "-$") + Math.abs(net).toLocaleString('en-US'); nEl.style.color = net >= 0 ? "#4CAF50" : "#d32f2f";
             } else { 
@@ -459,7 +527,6 @@
         function toggleDateInputs() { document.getElementById('date-range-inputs').style.display = document.getElementById('query-type').value==='custom'?'flex':'none'; }
         function toggleSearchDateInputs() { document.getElementById('search-date-range-inputs').style.display = document.getElementById('search-time-type').value==='custom'?'flex':'none'; }
         
-        // ⭐ 統計頁面的專用查詢
         function executeStatsQuery() {
             if(!currentUid) return;
             const type = document.getElementById('query-type').value;
@@ -474,7 +541,6 @@
             queryUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'query-list-mine', 'query-list-partner', 'query-partner-title', 'stats'));
         }
 
-        // ⭐ 獨立的搜尋分頁查詢
         function executeSearch() {
             if(!currentUid) return;
             const type = document.getElementById('search-time-type').value, kw = document.getElementById('search-keyword').value.trim();
@@ -489,12 +555,11 @@
             searchUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'search-list-mine', 'search-list-partner', 'search-partner-title', 'search', kw));
         }
 
-        // ⭐ 執行一鍵清除的函數
         function clearSearch() {
-            document.getElementById('search-keyword').value = ""; // 清空文字框
-            document.getElementById('search-time-type').value = "all"; // 切回所有時間
-            toggleSearchDateInputs(); // 隱藏自訂日期框
-            executeSearch(); // 重新載入無過濾的資料
+            document.getElementById('search-keyword').value = ""; 
+            document.getElementById('search-time-type').value = "all"; 
+            toggleSearchDateInputs(); 
+            executeSearch(); 
         }
 
         function loadExpenses(uid) {
