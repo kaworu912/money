@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     
     <style>
-        /* ================= 樣式區塊 ================= */
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { margin: 0; background-color: #f4f4f9; color: #333; }
         .screen { padding: 20px; max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
@@ -49,6 +48,7 @@
         </div>
     </div>
 
+    <!-- 記帳主介面 -->
     <div id="app-screen" class="screen hidden">
         <header>
             <h3 id="greeting">Hello, </h3>
@@ -93,23 +93,22 @@
             </div>
         </div>
 
-        <!-- ================= TAB 2: 查詢與圖表 ================= -->
+        <!-- ================= TAB 2: 統計圖表 (移除關鍵字) ================= -->
         <div id="tab-stats" class="tab-content">
             <div class="card">
-                <h4 style="margin-top: 0; margin-bottom: 10px;">🔍 查詢條件</h4>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <h4 style="margin-top: 0; margin-bottom: 10px;">📊 統計區間</h4>
+                <div style="display: flex; gap: 10px;">
                     <select id="query-type" onchange="toggleDateInputs()" style="flex: 1; margin: 0;">
                         <option value="month">本月</option>
                         <option value="custom">特定區間</option>
                         <option value="all">所有時間</option>
                     </select>
-                    <button onclick="executeQuery()" style="background-color: #ff9800; color: white; margin: 0; padding: 0 15px; width: auto;">查詢</button>
+                    <button onclick="executeQuery()" style="background-color: #ff9800; color: white; margin: 0; padding: 0 15px; width: auto;">統計</button>
                 </div>
-                <div id="date-range-inputs" style="display: none; gap: 10px; margin-bottom: 10px;">
+                <div id="date-range-inputs" style="display: none; gap: 10px; margin-top: 10px;">
                     <input type="date" id="start-date" style="flex: 1; margin: 0;">
                     <input type="date" id="end-date" style="flex: 1; margin: 0;">
                 </div>
-                <input type="text" id="search-keyword" placeholder="🔍 搜尋關鍵字 (例如：撿到錢)" style="width: 100%; margin: 0; background-color: #f9f9f9;">
             </div>
 
             <div class="card" id="query-result-card" style="display: none; padding-bottom: 10px;">
@@ -129,7 +128,6 @@
                     <div id="chart-carousel" style="display: flex; width: 200%; transition: transform 0.3s ease; transform: translateX(0%);">
                         <div style="width: 50%; flex-shrink: 0; box-sizing: border-box; padding: 0 5px;">
                             <h4 style="margin-top: 0; margin-bottom: 5px; text-align: center;">🍩 支出比例分析</h4>
-                            <div style="text-align: center; font-size: 13px; color: #666; margin-bottom: 5px; height: 18px;">(各分類佔總支出的比例)</div>
                             <p id="empty-expense-msg" style="text-align: center; color: #999; display: none; font-size: 14px;">查無支出紀錄</p>
                             <div style="position: relative; height: 230px; width: 100%;">
                                 <canvas id="expenseChart"></canvas>
@@ -154,14 +152,50 @@
             </div>
 
             <div class="split-view">
-                <div class="half"><h4>我的查詢</h4><ul id="query-list-mine"></ul></div>
-                <div class="half"><h4 id="query-partner-title">另一半查詢</h4><ul id="query-list-partner"></ul></div>
+                <div class="half"><h4>我的明細</h4><ul id="query-list-mine"></ul></div>
+                <div class="half"><h4 id="query-partner-title">另一半明細</h4><ul id="query-list-partner"></ul></div>
             </div>
         </div>
 
+        <!-- ================= ⭐ TAB 3: 獨立關鍵字搜尋 ================= -->
+        <div id="tab-search" class="tab-content">
+            <div class="card">
+                <h4 style="margin-top: 0; margin-bottom: 10px;">🔍 關鍵字搜尋</h4>
+                <input type="text" id="search-keyword" placeholder="輸入關鍵字 (例如：撿到錢)" style="width: 100%; margin-bottom: 10px; background-color: #f9f9f9;" onkeyup="if(event.key==='Enter') executeSearch()">
+                <div style="display: flex; gap: 10px;">
+                    <select id="search-time-type" onchange="toggleSearchDateInputs()" style="flex: 1; margin: 0;">
+                        <option value="all">所有時間</option>
+                        <option value="month">本月</option>
+                        <option value="custom">特定區間</option>
+                    </select>
+                    <button onclick="executeSearch()" style="background-color: #2196F3; color: white; margin: 0; padding: 0 15px; width: auto;">搜尋</button>
+                </div>
+                <div id="search-date-range-inputs" style="display: none; gap: 10px; margin-top: 10px;">
+                    <input type="date" id="search-start-date" style="flex: 1; margin: 0;">
+                    <input type="date" id="search-end-date" style="flex: 1; margin: 0;">
+                </div>
+            </div>
+
+            <div class="card" id="search-result-summary" style="display: none; padding-bottom: 15px;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; text-align: center;">📈 搜尋總計</h4>
+                <div style="display: flex; justify-content: space-around; font-size: 14px;">
+                    <div>支出: <span id="search-total-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入: <span id="search-total-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>結餘: <span id="search-total-net" style="font-weight: bold;">$0</span></div>
+                </div>
+            </div>
+
+            <div class="split-view">
+                <div class="half"><h4>我的搜尋</h4><ul id="search-list-mine"></ul></div>
+                <div class="half"><h4 id="search-partner-title">另一半搜尋</h4><ul id="search-list-partner"></ul></div>
+            </div>
+        </div>
+
+        <!-- 底部導覽列 -->
         <nav class="bottom-nav">
             <div class="nav-item active" onclick="switchTab('home', this)"><span class="nav-icon">🏠</span>記帳首頁</div>
             <div class="nav-item" onclick="switchTab('stats', this)"><span class="nav-icon">📊</span>統計分析</div>
+            <div class="nav-item" onclick="switchTab('search', this)"><span class="nav-icon">🔍</span>搜尋</div>
         </nav>
     </div>
 
@@ -175,19 +209,14 @@
         </div>
     </div>
 
-    <!-- ⭐ 先載入你的設定檔 -->
+    <!-- 載入設定檔 -->
     <script src="config.js"></script>
 
-    <!-- ⭐ 再執行主要邏輯 -->
+    <!-- 主要邏輯 -->
     <script>
-        // 初始化 Firebase (吃 config.js 的資料)
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth(); const db = firebase.firestore();
 
-        // 預設分類與記憶自訂分類
         const categories = {
             "餐飲": ["早餐", "午餐", "晚餐", "飲料", "零食", "買菜"],
             "交通": ["捷運", "公車", "計程車", "加油", "停車費", "保養"],
@@ -198,15 +227,10 @@
         let savedOthers = JSON.parse(localStorage.getItem("customOthers") || "[]");
         savedOthers.forEach(item => { if (!categories["其他"].includes(item)) categories["其他"].push(item); });
 
-        // 全域變數
-        let currentNickname = ""; 
-        let unsubscribe = null;
-        let actionDocId = "";
-        let actionAmount = 0;
-        let currentUid = null;
-        let homeUnsubscribe = null, queryUnsubscribe = null, dailyUnsubscribe = null;
-        let expenseChart = null, inOutChart = null; 
-        let currentViewDate = new Date();
+        let currentNickname = "", unsubscribe = null;
+        let actionDocId = "", actionAmount = 0, currentUid = null;
+        let homeUnsubscribe = null, queryUnsubscribe = null, dailyUnsubscribe = null, searchUnsubscribe = null;
+        let expenseChart = null, inOutChart = null, currentViewDate = new Date();
         let currentStatView = 'all'; 
         let statsData = {
             all: { income: 0, expense: 0, categories: {} },
@@ -214,153 +238,110 @@
             partner: { income: 0, expense: 0, categories: {}, name: "另一半" }
         };
 
-        // UI 初始化
         function initCategories() {
-            const mainSelect = document.getElementById("main-category");
-            mainSelect.innerHTML = "";
-            for (let main in categories) mainSelect.innerHTML += `<option value="${main}">${main}</option>`;
+            const ms = document.getElementById("main-category"); ms.innerHTML = "";
+            for (let m in categories) ms.innerHTML += `<option value="${m}">${m}</option>`;
             updateSubCategories();
         }
         function updateSubCategories() {
-            const mainValue = document.getElementById("main-category").value;
-            const subSelect = document.getElementById("sub-category");
-            subSelect.innerHTML = "";
-            categories[mainValue].forEach(sub => subSelect.innerHTML += `<option value="${sub}">${sub}</option>`);
+            const mv = document.getElementById("main-category").value, ss = document.getElementById("sub-category"); ss.innerHTML = "";
+            categories[mv].forEach(s => ss.innerHTML += `<option value="${s}">${s}</option>`);
         }
         function checkSpecialFields() {
-            const mainCat = document.getElementById("main-category").value;
-            const subCat = document.getElementById("sub-category").value;
-            document.getElementById("record-type").style.display = (subCat === "麻將" || mainCat === "其他") ? "block" : "none";
-            document.getElementById("custom-sub-cat").style.display = (mainCat === "其他" && subCat === "自訂...") ? "block" : "none";
+            const mv = document.getElementById("main-category").value, sv = document.getElementById("sub-category").value;
+            document.getElementById("record-type").style.display = (sv === "麻將" || mv === "其他") ? "block" : "none";
+            document.getElementById("custom-sub-cat").style.display = (mv === "其他" && sv === "自訂...") ? "block" : "none";
         }
 
-        // 登入相關邏輯
         function convertToFakeEmail(text) {
-            let hex = '';
-            for (let i = 0; i < text.length; i++) hex += text.charCodeAt(i).toString(16);
+            let hex = ''; for (let i = 0; i < text.length; i++) hex += text.charCodeAt(i).toString(16);
             return hex + "@myapp.fake";
         }
         auth.onAuthStateChanged(user => {
             if (user) {
-                document.getElementById("login-screen").classList.add("hidden");
-                document.getElementById("app-screen").classList.remove("hidden");
-                currentNickname = localStorage.getItem("myNickname") || "User";
-                document.getElementById("greeting").innerText = `Hello, ${currentNickname}`;
+                document.getElementById("login-screen").classList.add("hidden"); document.getElementById("app-screen").classList.remove("hidden");
+                currentNickname = localStorage.getItem("myNickname") || "User"; document.getElementById("greeting").innerText = `Hello, ${currentNickname}`;
                 loadExpenses(user.uid); 
             } else {
-                document.getElementById("login-screen").classList.remove("hidden");
-                document.getElementById("app-screen").classList.add("hidden");
+                document.getElementById("login-screen").classList.remove("hidden"); document.getElementById("app-screen").classList.add("hidden");
                 if (unsubscribe) unsubscribe();
             }
         });
         function register() {
-            const acc = document.getElementById("account").value.trim();
-            const pwd = document.getElementById("password").value;
-            const nick = document.getElementById("nickname").value.trim();
-            if (!acc || !pwd || !nick) return alert("帳號、密碼和暱稱都不能空白喔！");
-            if (pwd.length < 6) return alert("密碼至少 6 個字元！");
+            const acc = document.getElementById("account").value.trim(), pwd = document.getElementById("password").value, nick = document.getElementById("nickname").value.trim();
+            if (!acc || !pwd || !nick) return alert("不能空白喔！"); if (pwd.length < 6) return alert("密碼至少 6 個字元！");
             localStorage.setItem("myNickname", nick);
-            auth.createUserWithEmailAndPassword(convertToFakeEmail(acc), pwd)
-                .then(() => alert("註冊成功！")).catch(err => alert("註冊失敗：" + err.message));
+            auth.createUserWithEmailAndPassword(convertToFakeEmail(acc), pwd).then(() => alert("註冊成功！")).catch(err => alert("註冊失敗：" + err.message));
         }
         function login() {
-            const acc = document.getElementById("account").value.trim();
-            const pwd = document.getElementById("password").value;
-            const nick = document.getElementById("nickname").value.trim();
-            if (!acc || !pwd || !nick) return alert("帳號、密碼和暱稱都不能空白喔！");
-            localStorage.setItem("myNickname", nick);
+            const acc = document.getElementById("account").value.trim(), pwd = document.getElementById("password").value, nick = document.getElementById("nickname").value.trim();
+            if (!acc || !pwd || !nick) return alert("不能空白喔！"); localStorage.setItem("myNickname", nick);
             auth.signInWithEmailAndPassword(convertToFakeEmail(acc), pwd).catch(() => alert("登入失敗：檢查帳號密碼"));
         }
         function logout() { auth.signOut(); }
-        function formatAmountInput(input) {
-            let value = input.value.replace(/[^\d]/g, '');
-            input.value = value !== '' ? Number(value).toLocaleString('en-US') : '';
-        }
+        function formatAmountInput(input) { let v = input.value.replace(/[^\d]/g, ''); input.value = v !== '' ? Number(v).toLocaleString('en-US') : ''; }
 
-        // 分頁與日期切換
         function switchTab(tabName, element) {
             document.getElementById('tab-home').classList.remove('active');
             document.getElementById('tab-stats').classList.remove('active');
+            document.getElementById('tab-search').classList.remove('active');
             document.getElementById('tab-' + tabName).classList.add('active');
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             element.classList.add('active');
         }
+
         function updateDateDisplay() {
-            const today = new Date(); today.setHours(0,0,0,0);
-            const view = new Date(currentViewDate); view.setHours(0,0,0,0);
-            const yyyy = view.getFullYear(), mm = String(view.getMonth()+1).padStart(2,'0'), dd = String(view.getDate()).padStart(2,'0');
-            let dateText = `${yyyy}-${mm}-${dd}`;
-            if (view.getTime() === today.getTime()) dateText += " (今天)";
-            else if (view.getTime() === today.getTime() - 86400000) dateText += " (昨天)";
-            document.getElementById('current-view-date').innerText = dateText;
-            const nextBtn = document.getElementById('next-day-btn');
-            nextBtn.disabled = view >= today;
-            nextBtn.style.opacity = view >= today ? 0.5 : 1;
+            const t = new Date(); t.setHours(0,0,0,0); const v = new Date(currentViewDate); v.setHours(0,0,0,0);
+            const yyyy = v.getFullYear(), mm = String(v.getMonth()+1).padStart(2,'0'), dd = String(v.getDate()).padStart(2,'0');
+            let dTxt = `${yyyy}-${mm}-${dd}`;
+            if (v.getTime() === t.getTime()) dTxt += " (今天)"; else if (v.getTime() === t.getTime() - 86400000) dTxt += " (昨天)";
+            document.getElementById('current-view-date').innerText = dTxt;
+            document.getElementById('next-day-btn').disabled = v >= t; document.getElementById('next-day-btn').style.opacity = v >= t ? 0.5 : 1;
         }
         function prevDay() { currentViewDate.setDate(currentViewDate.getDate() - 1); loadHomeExpenses(currentUid); }
         function nextDay() {
-            const today = new Date(); today.setHours(0,0,0,0);
-            const view = new Date(currentViewDate); view.setHours(0,0,0,0);
-            if (view >= today) return; 
-            currentViewDate.setDate(currentViewDate.getDate() + 1); loadHomeExpenses(currentUid); 
+            const t = new Date(); t.setHours(0,0,0,0); const v = new Date(currentViewDate); v.setHours(0,0,0,0);
+            if (v >= t) return; currentViewDate.setDate(currentViewDate.getDate() + 1); loadHomeExpenses(currentUid); 
         }
 
-        // 滑動邏輯
         let tsDaily = 0, teDaily = 0, tsChart = 0, teChart = 0;
         function setupSwipes() {
             const sDaily = document.getElementById('daily-swipe-container');
-            if(sDaily) {
-                sDaily.addEventListener('touchstart', e => { tsDaily = e.changedTouches[0].screenX; }, {passive: true});
-                sDaily.addEventListener('touchend', e => { teDaily = e.changedTouches[0].screenX; if(teDaily < tsDaily - 50) nextDay(); if(teDaily > tsDaily + 50) prevDay(); }, {passive: true});
-            }
+            if(sDaily) { sDaily.addEventListener('touchstart', e => { tsDaily = e.changedTouches[0].screenX; }, {passive: true}); sDaily.addEventListener('touchend', e => { teDaily = e.changedTouches[0].screenX; if(teDaily < tsDaily - 50) nextDay(); if(teDaily > tsDaily + 50) prevDay(); }, {passive: true}); }
             const sChart = document.getElementById('chart-carousel');
-            if(sChart) {
-                sChart.addEventListener('touchstart', e => { tsChart = e.changedTouches[0].screenX; }, {passive: true});
-                sChart.addEventListener('touchend', e => { teChart = e.changedTouches[0].screenX; if(teChart < tsChart - 40) switchChartSlide(1); if(teChart > tsChart + 40) switchChartSlide(0); }, {passive: true});
-            }
+            if(sChart) { sChart.addEventListener('touchstart', e => { tsChart = e.changedTouches[0].screenX; }, {passive: true}); sChart.addEventListener('touchend', e => { teChart = e.changedTouches[0].screenX; if(teChart < tsChart - 40) switchChartSlide(1); if(teChart > tsChart + 40) switchChartSlide(0); }, {passive: true}); }
         }
         function switchChartSlide(idx) {
             document.getElementById('chart-carousel').style.transform = `translateX(-${idx * 50}%)`;
-            document.getElementById('dot-0').style.background = idx === 0 ? '#4CAF50' : '#ddd';
-            document.getElementById('dot-0').style.width = idx === 0 ? '20px' : '8px';
-            document.getElementById('dot-0').style.borderRadius = idx === 0 ? '4px' : '50%';
-            document.getElementById('dot-1').style.background = idx === 1 ? '#4CAF50' : '#ddd';
-            document.getElementById('dot-1').style.width = idx === 1 ? '20px' : '8px';
-            document.getElementById('dot-1').style.borderRadius = idx === 1 ? '4px' : '50%';
+            document.getElementById('dot-0').style.background = idx === 0 ? '#4CAF50' : '#ddd'; document.getElementById('dot-0').style.width = idx === 0 ? '20px' : '8px'; document.getElementById('dot-0').style.borderRadius = idx === 0 ? '4px' : '50%';
+            document.getElementById('dot-1').style.background = idx === 1 ? '#4CAF50' : '#ddd'; document.getElementById('dot-1').style.width = idx === 1 ? '20px' : '8px'; document.getElementById('dot-1').style.borderRadius = idx === 1 ? '4px' : '50%';
         }
 
-        // 新增修改刪除
         function addExpense() {
-            const mainCat = document.getElementById("main-category").value;
-            let subCat = document.getElementById("sub-category").value; 
-            const customSubCat = document.getElementById("custom-sub-cat").value.trim();
-            const rawAmount = Number(document.getElementById("amount").value.replace(/,/g, ''));
-            if (!rawAmount || rawAmount <= 0) return alert("請輸入金額！");
-            
-            if (mainCat === "其他" && subCat === "自訂...") {
-                if (!customSubCat) return alert("請輸入自訂名稱");
-                subCat = customSubCat; 
+            const mc = document.getElementById("main-category").value; let sc = document.getElementById("sub-category").value; 
+            const cSc = document.getElementById("custom-sub-cat").value.trim(); const rAmt = Number(document.getElementById("amount").value.replace(/,/g, ''));
+            if (!rAmt || rAmt <= 0) return alert("請輸入金額！");
+            if (mc === "其他" && sc === "自訂...") {
+                if (!cSc) return alert("請輸入自訂名稱"); sc = cSc; 
                 let saved = JSON.parse(localStorage.getItem("customOthers") || "[]");
-                if (!saved.includes(subCat)) { saved.push(subCat); localStorage.setItem("customOthers", JSON.stringify(saved)); categories["其他"].push(subCat); }
+                if (!saved.includes(sc)) { saved.push(sc); localStorage.setItem("customOthers", JSON.stringify(saved)); categories["其他"].push(sc); }
             }
-            let type = (document.getElementById("sub-category").value === "麻將" || mainCat === "其他") ? document.getElementById("record-type").value : "expense";
+            let type = (document.getElementById("sub-category").value === "麻將" || mc === "其他") ? document.getElementById("record-type").value : "expense";
             currentViewDate = new Date(); loadHomeExpenses(auth.currentUser.uid); 
             
             db.collection("users").doc(auth.currentUser.uid).collection("expenses").add({
-                nickname: currentNickname, mainCat: mainCat, subCat: subCat, amount: rawAmount, type: type, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                nickname: currentNickname, mainCat: mc, subCat: sc, amount: rAmt, type: type, timestamp: firebase.firestore.FieldValue.serverTimestamp()
             }).then(() => {
                 document.getElementById("amount").value = ""; document.getElementById("custom-sub-cat").value = ""; 
-                if (mainCat === "其他") { updateSubCategories(); document.getElementById("sub-category").value = "自訂..."; checkSpecialFields(); }
+                if (mc === "其他") { updateSubCategories(); document.getElementById("sub-category").value = "自訂..."; checkSpecialFields(); }
             }).catch(err => alert("失敗：" + err.message));
         }
         function openActionModal(id, amt) { actionDocId = id; actionAmount = amt; document.getElementById("action-modal").style.display = "flex"; }
         function closeActionModal() { document.getElementById("action-modal").style.display = "none"; }
         function openEdit() {
-            const tId = actionDocId; const tAmt = actionAmount; closeActionModal(); 
-            const newAmt = prompt("修改金額：", tAmt);
-            if (newAmt === null) return; 
-            const rawNew = Number(newAmt.replace(/[^\d]/g, ''));
-            if (!rawNew || rawNew <= 0) return alert("無效金額");
+            const tId = actionDocId, tAmt = actionAmount; closeActionModal(); 
+            const newAmt = prompt("修改金額：", tAmt); if (newAmt === null) return; 
+            const rawNew = Number(newAmt.replace(/[^\d]/g, '')); if (!rawNew || rawNew <= 0) return alert("無效金額");
             db.collection("users").doc(currentUid).collection("expenses").doc(tId).update({ amount: rawNew });
         }
         function confirmDelete() {
@@ -368,25 +349,20 @@
             if (confirm("確定刪除？")) db.collection("users").doc(currentUid).collection("expenses").doc(tId).delete();
         }
 
-        // 統計圖表
         function changeStatView(view) {
             currentStatView = view;
             ['all', 'mine', 'partner'].forEach(v => {
                 const btn = document.getElementById('btn-stat-' + v);
                 if (v === view) { btn.style.background = '#4CAF50'; btn.style.color = 'white'; } 
                 else { btn.style.background = '#eee'; btn.style.color = '#333'; }
-            });
-            updateStatDisplay(); 
+            }); updateStatDisplay(); 
         }
         function updateStatDisplay() {
-            const data = statsData[currentStatView];
-            document.getElementById('query-expense').innerText = "$" + data.expense.toLocaleString('en-US');
-            document.getElementById('query-income').innerText = "$" + data.income.toLocaleString('en-US');
-            const net = data.income - data.expense;
-            const netEl = document.getElementById('query-net');
-            netEl.innerText = (net >= 0 ? "+$" : "-$") + Math.abs(net).toLocaleString('en-US');
-            netEl.style.color = net >= 0 ? "#4CAF50" : "#d32f2f";
-            renderExpenseChart(data.categories); renderInOutChart(data.income, data.expense);
+            const d = statsData[currentStatView];
+            document.getElementById('query-expense').innerText = "$" + d.expense.toLocaleString('en-US'); document.getElementById('query-income').innerText = "$" + d.income.toLocaleString('en-US');
+            const net = d.income - d.expense; const nEl = document.getElementById('query-net');
+            nEl.innerText = (net >= 0 ? "+$" : "-$") + Math.abs(net).toLocaleString('en-US'); nEl.style.color = net >= 0 ? "#4CAF50" : "#d32f2f";
+            renderExpenseChart(d.categories); renderInOutChart(d.income, d.expense);
         }
         function renderExpenseChart(cats) {
             const ctx = document.getElementById('expenseChart'); const lbls = Object.keys(cats), dts = Object.values(cats);
@@ -410,62 +386,80 @@
             inOutChart = new Chart(ctx, { type: 'doughnut', data: { labels: lbls, datasets: [{ data: dts, backgroundColor: bg, borderWidth:2, borderColor:'#fff' }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 }, formatter: (v, ctx) => { let p = Math.round((v / ctx.chart._metasets[ctx.datasetIndex].total) * 100); return p < 5 ? null : p + '%'; } }, tooltip: { callbacks: { label: c => `${c.label}: $${c.raw.toLocaleString()}` } } } } });
         }
 
-        // 資料抓取
         function loadDailySummary(uid) {
-            if(dailyUnsubscribe) dailyUnsubscribe();
-            const today = new Date(); today.setHours(0,0,0,0);
-            dailyUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp", ">=", today).onSnapshot(snap => {
-                let exp=0, inc=0;
-                snap.forEach(d => { const dt=d.data(); if((dt.type||"expense")==='income') inc+=dt.amount; else exp+=dt.amount; });
+            if(dailyUnsubscribe) dailyUnsubscribe(); const t = new Date(); t.setHours(0,0,0,0);
+            dailyUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp", ">=", t).onSnapshot(snap => {
+                let exp=0, inc=0; snap.forEach(d => { const dt=d.data(); if((dt.type||"expense")==='income') inc+=dt.amount; else exp+=dt.amount; });
                 document.getElementById('daily-expense').innerText = "$"+exp.toLocaleString(); document.getElementById('daily-income').innerText = "$"+inc.toLocaleString();
-                const net = inc-exp; const netEl = document.getElementById('daily-net');
-                netEl.innerText = (net>=0?"+$":"-$") + Math.abs(net).toLocaleString(); netEl.style.color = net>=0?"#4CAF50":"#d32f2f";
+                const net = inc-exp; const nEl = document.getElementById('daily-net'); nEl.innerText = (net>=0?"+$":"-$") + Math.abs(net).toLocaleString(); nEl.style.color = net>=0?"#4CAF50":"#d32f2f";
             });
         }
 
-        function renderList(snap, lmId, lpId, ptId, isQ, kw="") {
+        // ⭐ 升級版的 renderList 負責切換不同模式 (首頁/統計/搜尋)
+        function renderList(snap, lmId, lpId, ptId, mode, kw="") {
             const lm = document.getElementById(lmId), lp = document.getElementById(lpId);
-            if(isQ) {
+            
+            if(mode === 'stats') {
                 document.getElementById('query-result-card').style.display = 'block';
                 statsData = { all: { income:0, expense:0, categories:{} }, mine: { income:0, expense:0, categories:{} }, partner: { income:0, expense:0, categories:{}, name:"另一半" } };
+            } else if (mode === 'search') {
+                document.getElementById('search-result-summary').style.display = 'block';
             } else {
                 const sw = document.getElementById('daily-swipe-container'), msg = document.getElementById('empty-daily-msg');
-                if(snap.empty) { sw.style.display='none'; msg.style.display='block'; return; } 
-                else { sw.style.display='flex'; msg.style.display='none'; }
+                if(snap.empty) { sw.style.display='none'; msg.style.display='block'; return; } else { sw.style.display='flex'; msg.style.display='none'; }
             }
+            
             lm.innerHTML=""; lp.innerHTML=""; let fp = false;
+            let searchInc = 0, searchExp = 0;
 
             snap.forEach(doc => {
                 const dt = doc.data();
-                if(isQ && kw) { const s = (dt.mainCat+dt.subCat+(dt.nickname||"")).toLowerCase(); if(!s.includes(kw.toLowerCase())) return; }
+                if(mode === 'search' && kw) { const s = (dt.mainCat+dt.subCat+(dt.nickname||"")).toLowerCase(); if(!s.includes(kw.toLowerCase())) return; }
                 const type = dt.type||"expense", isMine = dt.nickname===currentNickname, amt = dt.amount, cat = dt.mainCat;
-                if(isQ) {
+                
+                if(mode === 'stats') {
                     if(type==='income') statsData.all.income+=amt; else { statsData.all.expense+=amt; statsData.all.categories[cat]=(statsData.all.categories[cat]||0)+amt; }
                     if(isMine){ if(type==='income') statsData.mine.income+=amt; else { statsData.mine.expense+=amt; statsData.mine.categories[cat]=(statsData.mine.categories[cat]||0)+amt; } }
                     else { statsData.partner.name = dt.nickname; if(type==='income') statsData.partner.income+=amt; else { statsData.partner.expense+=amt; statsData.partner.categories[cat]=(statsData.partner.categories[cat]||0)+amt; } }
+                } else if (mode === 'search') {
+                    if(type === 'income') searchInc += amt; else searchExp += amt;
                 }
+
                 const clr = type==="income"?"#4CAF50":"#d32f2f", sgn = type==="income"?"+":"";
                 let tm=""; if(dt.timestamp){ const dObj=dt.timestamp.toDate(); tm=` <span style="font-size:11px;color:#999;">(${String(dObj.getHours()).padStart(2,'0')}:${String(dObj.getMinutes()).padStart(2,'0')})</span>`; }
                 const btn = `<span style="margin-left:10px;cursor:pointer;color:#888;font-size:18px;font-weight:bold;" onclick="openActionModal('${doc.id}', ${amt})">⋯</span>`;
                 const li = `<li style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:5px;font-size:14px;"><span>${cat}-${dt.subCat}${tm}</span><div><span style="color:${clr};font-weight:bold;">${sgn}$${Number(amt).toLocaleString()}</span>${btn}</div></li>`;
-                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+(isQ?"的查詢":"紀錄"); fp=true; } }
+                
+                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+"的紀錄"; fp=true; } }
             });
-            if(!fp) document.getElementById(ptId).innerText = "另一半"+(isQ?"的查詢":"紀錄");
-            if(isQ){ document.getElementById('btn-stat-partner').innerText = statsData.partner.name; updateStatDisplay(); }
-            else { if(lm.innerHTML==="" && lp.innerHTML===""){ document.getElementById('daily-swipe-container').style.display='none'; document.getElementById('empty-daily-msg').style.display='block'; } }
+            
+            if(!fp) document.getElementById(ptId).innerText = "另一半的紀錄";
+
+            if(mode === 'stats'){ 
+                document.getElementById('btn-stat-partner').innerText = statsData.partner.name; updateStatDisplay(); 
+            } else if (mode === 'search') {
+                document.getElementById('search-total-expense').innerText = "$" + searchExp.toLocaleString('en-US');
+                document.getElementById('search-total-income').innerText = "$" + searchInc.toLocaleString('en-US');
+                const net = searchInc - searchExp; const nEl = document.getElementById('search-total-net');
+                nEl.innerText = (net >= 0 ? "+$" : "-$") + Math.abs(net).toLocaleString('en-US'); nEl.style.color = net >= 0 ? "#4CAF50" : "#d32f2f";
+            } else { 
+                if(lm.innerHTML==="" && lp.innerHTML===""){ document.getElementById('daily-swipe-container').style.display='none'; document.getElementById('empty-daily-msg').style.display='block'; } 
+            }
         }
 
         function loadHomeExpenses(uid) {
             updateDateDisplay(); if(homeUnsubscribe) homeUnsubscribe();
             const s = new Date(currentViewDate); s.setHours(0,0,0,0); const e = new Date(currentViewDate); e.setHours(23,59,59,999);
-            homeUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp",">=",s).where("timestamp","<=",e).orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'list-mine', 'list-partner', 'partner-title', false));
+            homeUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp",">=",s).where("timestamp","<=",e).orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'list-mine', 'list-partner', 'partner-title', 'home'));
         }
 
         function toggleDateInputs() { document.getElementById('date-range-inputs').style.display = document.getElementById('query-type').value==='custom'?'flex':'none'; }
+        function toggleSearchDateInputs() { document.getElementById('search-date-range-inputs').style.display = document.getElementById('search-time-type').value==='custom'?'flex':'none'; }
         
+        // 統計區間執行函數 (無視關鍵字，專注畫圖)
         function executeQuery() {
             if(!currentUid) return;
-            const type = document.getElementById('query-type').value, kw = document.getElementById('search-keyword').value.trim();
+            const type = document.getElementById('query-type').value;
             let ref = db.collection("users").doc(currentUid).collection("expenses");
             if(type!=='all') {
                 let s, e;
@@ -474,18 +468,32 @@
                 ref = ref.where("timestamp",">=",s).where("timestamp","<=",e);
             }
             if(queryUnsubscribe) queryUnsubscribe();
-            queryUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'query-list-mine', 'query-list-partner', 'query-partner-title', true, kw));
+            queryUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'query-list-mine', 'query-list-partner', 'query-partner-title', 'stats'));
+        }
+
+        // 獨立的關鍵字搜尋函數 (包含關鍵字過濾，不畫圖表)
+        function executeSearch() {
+            if(!currentUid) return;
+            const type = document.getElementById('search-time-type').value, kw = document.getElementById('search-keyword').value.trim();
+            let ref = db.collection("users").doc(currentUid).collection("expenses");
+            if(type!=='all') {
+                let s, e;
+                if(type==='month') { const now = new Date(); s = new Date(now.getFullYear(), now.getMonth(), 1); e = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999); }
+                else if(type==='custom') { const sv=document.getElementById('search-start-date').value, ev=document.getElementById('search-end-date').value; if(!sv||!ev) return alert("請選擇日期！"); s=new Date(sv+"T00:00:00"); e=new Date(ev+"T23:59:59"); }
+                ref = ref.where("timestamp",">=",s).where("timestamp","<=",e);
+            }
+            if(searchUnsubscribe) searchUnsubscribe();
+            searchUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'search-list-mine', 'search-list-partner', 'search-partner-title', 'search', kw));
         }
 
         function loadExpenses(uid) {
             currentUid = uid; setupSwipes(); loadDailySummary(uid); loadHomeExpenses(uid);
             document.getElementById('query-type').value = 'month'; toggleDateInputs(); executeQuery();
-            unsubscribe = () => { if(homeUnsubscribe) homeUnsubscribe(); if(queryUnsubscribe) queryUnsubscribe(); if(dailyUnsubscribe) dailyUnsubscribe(); };
+            document.getElementById('search-time-type').value = 'all'; toggleSearchDateInputs(); executeSearch();
+            unsubscribe = () => { if(homeUnsubscribe) homeUnsubscribe(); if(queryUnsubscribe) queryUnsubscribe(); if(dailyUnsubscribe) dailyUnsubscribe(); if(searchUnsubscribe) searchUnsubscribe(); };
         }
         
-        // 啟動 UI 初始化
-        initCategories();
-        setTimeout(checkSpecialFields, 100);
+        initCategories(); setTimeout(checkSpecialFields, 100);
     </script>
 </body>
 </html>
