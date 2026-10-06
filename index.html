@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>雙人記帳</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<body>
+    <div id="login-screen" class="screen">
+        <h2>我們的記帳本</h2>
+        <p style="text-align: center; color: #666; font-size: 14px;">輸入自訂的共同帳號與密碼<br>並設定你自己的暱稱！</p>
+        <input type="text" id="account" placeholder="設定共同帳號 (中英文數字皆可)">
+        <input type="password" id="password" placeholder="設定密碼 (至少6碼)">
+        <input type="text" id="nickname" placeholder="你的專屬暱稱 (例如：阿明、大熊)">
+        <div style="display: flex; gap: 10px;">
+            <button onclick="login()" style="flex: 1;">登入</button>
+            <button onclick="register()" style="flex: 1; background-color: #2196F3;">註冊</button>
+        </div>
+    </div>
+
+    <div id="app-screen" class="screen hidden">
+        <header>
+            <h3 id="greeting">Hello, </h3>
+            <button onclick="logout()" class="small-btn">登出</button>
+        </header>
+
+        <!-- ================= TAB 1: 記帳首頁 ================= -->
+        <div id="tab-home" class="tab-content active">
+            <div class="card" style="background-color: #fff9c4; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                <h4 style="margin: 0 0 10px 0; color: #333;">📊 本日總計</h4>
+                <div style="display: flex; justify-content: space-around; font-size: 15px;">
+                    <div>支出: <span id="daily-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入: <span id="daily-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>結餘: <span id="daily-net" style="font-weight: bold;">$0</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h4>新增一筆紀錄</h4>
+                <select id="main-category" onchange="updateSubCategories(); checkSpecialFields();"></select>
+                <select id="sub-category" onchange="checkSpecialFields()"></select>
+                <input type="text" id="custom-sub-cat" placeholder="輸入項目名稱 (例如：撿到錢)" style="display: none; background-color: #fff9c4;">
+                <select id="record-type" style="display: none; background-color: #e8f5e9; font-weight: bold;">
+                    <option value="expense">支出 (花費/輸錢)</option>
+                    <option value="income">收入 (獲得/贏錢)</option>
+                </select>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="amount" placeholder="金額 ($)" oninput="formatAmountInput(this)">
+                <button onclick="addExpense()">記一筆</button>
+            </div>
+
+            <div class="card" style="padding: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f0f0f0; padding: 8px; border-radius: 8px;">
+                    <button onclick="prevDay()" style="width: auto; padding: 5px 15px; margin: 0; background: #ddd; color: #333; font-weight: bold;">◀</button>
+                    <h4 id="current-view-date" style="margin: 0; font-size: 15px; color: #333;">今天</h4>
+                    <button id="next-day-btn" onclick="nextDay()" style="width: auto; padding: 5px 15px; margin: 0; background: #ddd; color: #333; font-weight: bold; opacity: 0.5;">▶</button>
+                </div>
+                
+                <p id="empty-daily-msg" style="text-align: center; color: #999; font-size: 14px; margin: 20px 0; display: none;">這天沒有任何紀錄唷</p>
+
+                <div id="daily-swipe-container" class="split-view">
+                    <div class="half">
+                        <h4 style="font-size: 14px;">我的紀錄</h4>
+                        <ul id="list-mine"></ul>
+                    </div>
+                    <div class="half">
+                        <h4 id="partner-title" style="font-size: 14px;">另一半紀錄</h4>
+                        <ul id="list-partner"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 2: 查詢與圖表 ================= -->
+        <div id="tab-stats" class="tab-content">
+            <div class="card">
+                <h4 style="margin-top: 0; margin-bottom: 10px;">🔍 查詢條件</h4>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="query-type" onchange="toggleDateInputs()" style="flex: 1; margin: 0;">
+                        <option value="month">本月</option>
+                        <option value="custom">特定區間</option>
+                        <!-- ⭐ 新增：所有時間 -->
+                        <option value="all">所有時間</option>
+                    </select>
+                    <button onclick="executeQuery()" style="background-color: #ff9800; color: white; margin: 0; padding: 0 15px; width: auto;">查詢</button>
+                </div>
+                <div id="date-range-inputs" style="display: none; gap: 10px; margin-bottom: 10px;">
+                    <input type="date" id="start-date" style="flex: 1; margin: 0;">
+                    <input type="date" id="end-date" style="flex: 1; margin: 0;">
+                </div>
+                <!-- ⭐ 新增：關鍵字搜尋輸入框 -->
+                <input type="text" id="search-keyword" placeholder="🔍 搜尋關鍵字 (例如：撿到錢)" style="width: 100%; margin: 0; background-color: #f9f9f9;">
+            </div>
+
+            <div class="card" id="query-result-card" style="display: none; padding-bottom: 10px;">
+                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                    <button id="btn-stat-all" onclick="changeStatView('all')" style="flex:1; padding: 8px 0; background: #4CAF50; color:white; border-radius: 8px; font-size: 14px;">兩人總計</button>
+                    <button id="btn-stat-mine" onclick="changeStatView('mine')" style="flex:1; padding: 8px 0; background: #eee; color:#333; border-radius: 8px; font-size: 14px;">我的</button>
+                    <button id="btn-stat-partner" onclick="changeStatView('partner')" style="flex:1; padding: 8px 0; background: #eee; color:#333; border-radius: 8px; font-size: 14px;">另一半</button>
+                </div>
+                
+                <div style="display: flex; justify-content: space-around; font-size: 14px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                    <div>支出: <span id="query-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入: <span id="query-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>結餘: <span id="query-net" style="font-weight: bold;">$0</span></div>
+                </div>
+
+                <div style="width: 100%; overflow: hidden; position: relative;">
+                    <div id="chart-carousel" style="display: flex; width: 200%; transition: transform 0.3s ease; transform: translateX(0%);">
+                        <div style="width: 50%; flex-shrink: 0; box-sizing: border-box; padding: 0 5px;">
+                            <h4 style="margin-top: 0; margin-bottom: 5px; text-align: center;">🍩 支出比例分析</h4>
+                            <div style="text-align: center; font-size: 13px; color: #666; margin-bottom: 5px; height: 18px;">(各分類佔總支出的比例)</div>
+                            <p id="empty-expense-msg" style="text-align: center; color: #999; display: none; font-size: 14px;">查無支出紀錄</p>
+                            <div style="position: relative; height: 230px; width: 100%;">
+                                <canvas id="expenseChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div style="width: 50%; flex-shrink: 0; box-sizing: border-box; padding: 0 5px;">
+                            <h4 style="margin-top: 0; margin-bottom: 5px; text-align: center;">⚖️ 收入與支出比例</h4>
+                            <div id="inout-ratio-text" style="text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; height: 18px; color: #333;"></div>
+                            <p id="empty-inout-msg" style="text-align: center; color: #999; display: none; font-size: 14px;">查無紀錄</p>
+                            <div style="position: relative; height: 230px; width: 100%;">
+                                <canvas id="inOutChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 15px;">
+                    <span id="dot-0" onclick="switchChartSlide(0)" style="cursor: pointer; display: inline-block; width: 20px; height: 8px; background: #4CAF50; border-radius: 4px; margin: 0 3px; transition: 0.3s;"></span>
+                    <span id="dot-1" onclick="switchChartSlide(1)" style="cursor: pointer; display: inline-block; width: 8px; height: 8px; background: #ddd; border-radius: 50%; margin: 0 3px; transition: 0.3s;"></span>
+                </div>
+            </div>
+
+            <div class="split-view">
+                <div class="half">
+                    <h4>我的查詢</h4>
+                    <ul id="query-list-mine"></ul>
+                </div>
+                <div class="half">
+                    <h4 id="query-partner-title">另一半查詢</h4>
+                    <ul id="query-list-partner"></ul>
+                </div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('home', this)">
+                <span class="nav-icon">🏠</span>記帳首頁
+            </div>
+            <div class="nav-item" onclick="switchTab('stats', this)">
+                <span class="nav-icon">📊</span>統計分析
+            </div>
+        </nav>
+    </div>
+
+    <div id="action-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box;">
+        <div class="card" style="width: 100%; max-width: 300px; text-align: center; margin: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <h4 style="margin-top:0; margin-bottom: 20px;">請選擇操作</h4>
+            <button onclick="openEdit()" style="background-color: #2196F3; margin-bottom: 12px; font-size: 16px;">✏️ 修改金額</button>
+            <button onclick="confirmDelete()" style="background-color: #ff5252; margin-bottom: 12px; font-size: 16px;">❌ 刪除紀錄</button>
+            <button onclick="closeActionModal()" style="background-color: #eee; color: #333; font-size: 16px;">取消</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="core.js"></script>
+    <script src="features.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+    </script>
+</body>
+</html>
