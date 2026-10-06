@@ -93,7 +93,7 @@
             </div>
         </div>
 
-        <!-- ================= TAB 2: 統計圖表 (移除關鍵字) ================= -->
+        <!-- ================= TAB 2: 統計圖表 ================= -->
         <div id="tab-stats" class="tab-content">
             <div class="card">
                 <h4 style="margin-top: 0; margin-bottom: 10px;">📊 統計區間</h4>
@@ -103,7 +103,7 @@
                         <option value="custom">特定區間</option>
                         <option value="all">所有時間</option>
                     </select>
-                    <button onclick="executeQuery()" style="background-color: #ff9800; color: white; margin: 0; padding: 0 15px; width: auto;">統計</button>
+                    <button onclick="executeStatsQuery()" style="background-color: #ff9800; color: white; margin: 0; padding: 0 15px; width: auto;">統計</button>
                 </div>
                 <div id="date-range-inputs" style="display: none; gap: 10px; margin-top: 10px;">
                     <input type="date" id="start-date" style="flex: 1; margin: 0;">
@@ -162,14 +162,18 @@
             <div class="card">
                 <h4 style="margin-top: 0; margin-bottom: 10px;">🔍 關鍵字搜尋</h4>
                 <input type="text" id="search-keyword" placeholder="輸入關鍵字 (例如：撿到錢)" style="width: 100%; margin-bottom: 10px; background-color: #f9f9f9;" onkeyup="if(event.key==='Enter') executeSearch()">
-                <div style="display: flex; gap: 10px;">
-                    <select id="search-time-type" onchange="toggleSearchDateInputs()" style="flex: 1; margin: 0;">
+                
+                <!-- ⭐ 修改：加入清除按鈕，並稍微壓縮間距讓按鈕更好按 -->
+                <div style="display: flex; gap: 8px;">
+                    <select id="search-time-type" onchange="toggleSearchDateInputs()" style="flex: 1; margin: 0; min-width: 0;">
                         <option value="all">所有時間</option>
                         <option value="month">本月</option>
                         <option value="custom">特定區間</option>
                     </select>
-                    <button onclick="executeSearch()" style="background-color: #2196F3; color: white; margin: 0; padding: 0 15px; width: auto;">搜尋</button>
+                    <button onclick="clearSearch()" style="background-color: #9e9e9e; color: white; margin: 0; padding: 0 12px; width: auto; font-size: 15px;">清除</button>
+                    <button onclick="executeSearch()" style="background-color: #2196F3; color: white; margin: 0; padding: 0 15px; width: auto; font-size: 15px;">搜尋</button>
                 </div>
+                
                 <div id="search-date-range-inputs" style="display: none; gap: 10px; margin-top: 10px;">
                     <input type="date" id="search-start-date" style="flex: 1; margin: 0;">
                     <input type="date" id="search-end-date" style="flex: 1; margin: 0;">
@@ -395,7 +399,6 @@
             });
         }
 
-        // ⭐ 升級版的 renderList 負責切換不同模式 (首頁/統計/搜尋)
         function renderList(snap, lmId, lpId, ptId, mode, kw="") {
             const lm = document.getElementById(lmId), lp = document.getElementById(lpId);
             
@@ -456,8 +459,8 @@
         function toggleDateInputs() { document.getElementById('date-range-inputs').style.display = document.getElementById('query-type').value==='custom'?'flex':'none'; }
         function toggleSearchDateInputs() { document.getElementById('search-date-range-inputs').style.display = document.getElementById('search-time-type').value==='custom'?'flex':'none'; }
         
-        // 統計區間執行函數 (無視關鍵字，專注畫圖)
-        function executeQuery() {
+        // ⭐ 統計頁面的專用查詢
+        function executeStatsQuery() {
             if(!currentUid) return;
             const type = document.getElementById('query-type').value;
             let ref = db.collection("users").doc(currentUid).collection("expenses");
@@ -471,7 +474,7 @@
             queryUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'query-list-mine', 'query-list-partner', 'query-partner-title', 'stats'));
         }
 
-        // 獨立的關鍵字搜尋函數 (包含關鍵字過濾，不畫圖表)
+        // ⭐ 獨立的搜尋分頁查詢
         function executeSearch() {
             if(!currentUid) return;
             const type = document.getElementById('search-time-type').value, kw = document.getElementById('search-keyword').value.trim();
@@ -486,9 +489,17 @@
             searchUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'search-list-mine', 'search-list-partner', 'search-partner-title', 'search', kw));
         }
 
+        // ⭐ 執行一鍵清除的函數
+        function clearSearch() {
+            document.getElementById('search-keyword').value = ""; // 清空文字框
+            document.getElementById('search-time-type').value = "all"; // 切回所有時間
+            toggleSearchDateInputs(); // 隱藏自訂日期框
+            executeSearch(); // 重新載入無過濾的資料
+        }
+
         function loadExpenses(uid) {
             currentUid = uid; setupSwipes(); loadDailySummary(uid); loadHomeExpenses(uid);
-            document.getElementById('query-type').value = 'month'; toggleDateInputs(); executeQuery();
+            document.getElementById('query-type').value = 'month'; toggleDateInputs(); executeStatsQuery();
             document.getElementById('search-time-type').value = 'all'; toggleSearchDateInputs(); executeSearch();
             unsubscribe = () => { if(homeUnsubscribe) homeUnsubscribe(); if(queryUnsubscribe) queryUnsubscribe(); if(dailyUnsubscribe) dailyUnsubscribe(); if(searchUnsubscribe) searchUnsubscribe(); };
         }
