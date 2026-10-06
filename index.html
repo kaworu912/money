@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>雙人記帳</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    
+    <style>
+        /* ================= 樣式區塊 ================= */
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { margin: 0; background-color: #f4f4f9; color: #333; }
+        .screen { padding: 20px; max-width: 500px; margin: 0 auto; padding-bottom: 80px; }
+        .hidden { display: none !important; }
+        h2, h3, h4 { margin-top: 0; text-align: center; }
+        input, select, button { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+        button { background-color: #4CAF50; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .small-btn { width: auto; padding: 6px 12px; font-size: 14px; background: #ff5252; float: right; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .split-view { display: flex; gap: 10px; }
+        .half { flex: 1; background: white; padding: 10px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        ul { list-style: none; padding: 0; margin: 0; }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-around; padding: 10px 0; z-index: 1000; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-item { flex: 1; text-align: center; color: #bbb; font-size: 12px; cursor: pointer; transition: 0.3s; }
+        .nav-item.active { color: #4CAF50; font-weight: bold; }
+        .nav-icon { font-size: 24px; display: block; margin-bottom: 2px; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <!-- 登入介面 -->
+    <div id="login-screen" class="screen">
+        <h2>我們的記帳本</h2>
+        <p style="text-align: center; color: #666; font-size: 14px;">輸入自訂的共同帳號與密碼<br>並設定你自己的暱稱！</p>
+        <input type="text" id="account" placeholder="設定共同帳號 (中英文數字皆可)">
+        <input type="password" id="password" placeholder="設定密碼 (至少6碼)">
+        <input type="text" id="nickname" placeholder="你的專屬暱稱 (例如：阿明)">
+        <div style="display: flex; gap: 10px;">
+            <button onclick="login()" style="flex: 1;">登入</button>
+            <button onclick="register()" style="flex: 1; background-color: #2196F3;">註冊</button>
+        </div>
+    </div>
+
+    <div id="app-screen" class="screen hidden">
+        <header>
+            <h3 id="greeting">Hello, </h3>
+            <button onclick="logout()" class="small-btn">登出</button>
+        </header>
+
+        <!-- ================= TAB 1: 記帳首頁 ================= -->
+        <div id="tab-home" class="tab-content active">
+            <div class="card" style="background-color: #fff9c4; padding: 15px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #333;">📊 本日總計</h4>
+                <div style="display: flex; justify-content: space-around; font-size: 15px;">
+                    <div>支出: <span id="daily-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入: <span id="daily-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>結餘: <span id="daily-net" style="font-weight: bold;">$0</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h4>新增一筆紀錄</h4>
+                <select id="main-category" onchange="updateSubCategories(); checkSpecialFields();"></select>
+                <select id="sub-category" onchange="checkSpecialFields()"></select>
+                <input type="text" id="custom-sub-cat" placeholder="輸入項目名稱 (例如：撿到錢)" style="display: none; background-color: #fff9c4;">
+                <select id="record-type" style="display: none; background-color: #e8f5e9; font-weight: bold;">
+                    <option value="expense">支出 (花費/輸錢)</option>
+                    <option value="income">收入 (獲得/贏錢)</option>
+                </select>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" id="amount" placeholder="金額 ($)" oninput="formatAmountInput(this)">
+                <button onclick="addExpense()">記一筆</button>
+            </div>
+
+            <div class="card" style="padding: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f0f0f0; padding: 8px; border-radius: 8px;">
+                    <button onclick="prevDay()" style="width: auto; padding: 5px 15px; margin: 0; background: #ddd; color: #333; font-weight: bold;">◀</button>
+                    <h4 id="current-view-date" style="margin: 0; font-size: 15px; color: #333;">今天</h4>
+                    <button id="next-day-btn" onclick="nextDay()" style="width: auto; padding: 5px 15px; margin: 0; background: #ddd; color: #333; font-weight: bold; opacity: 0.5;">▶</button>
+                </div>
+                <p id="empty-daily-msg" style="text-align: center; color: #999; font-size: 14px; margin: 20px 0; display: none;">這天沒有任何紀錄唷</p>
+                <div id="daily-swipe-container" class="split-view">
+                    <div class="half"><h4 style="font-size: 14px;">我的紀錄</h4><ul id="list-mine"></ul></div>
+                    <div class="half"><h4 id="partner-title" style="font-size: 14px;">另一半紀錄</h4><ul id="list-partner"></ul></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 2: 查詢與圖表 ================= -->
+        <div id="tab-stats" class="tab-content">
+            <div class="card">
+                <h4 style="margin-top: 0; margin-bottom: 10px;">🔍 查詢條件</h4>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="query-type" onchange="toggleDateInputs()" style="flex: 1; margin: 0;">
+                        <option value="month">本月</option>
+                        <option value="custom">特定區間</option>
+                        <option value="all">所有時間</option>
+                    </select>
+                    <button onclick="executeQuery()" style="background-color: #ff9800; color: white; margin: 0; padding: 0 15px; width: auto;">查詢</button>
+                </div>
+                <div id="date-range-inputs" style="display: none; gap: 10px; margin-bottom: 10px;">
+                    <input type="date" id="start-date" style="flex: 1; margin: 0;">
+                    <input type="date" id="end-date" style="flex: 1; margin: 0;">
+                </div>
+                <input type="text" id="search-keyword" placeholder="🔍 搜尋關鍵字 (例如：撿到錢)" style="width: 100%; margin: 0; background-color: #f9f9f9;">
+            </div>
+
+            <div class="card" id="query-result-card" style="display: none; padding-bottom: 10px;">
+                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                    <button id="btn-stat-all" onclick="changeStatView('all')" style="flex:1; padding: 8px 0; background: #4CAF50; color:white; border-radius: 8px; font-size: 14px;">兩人總計</button>
+                    <button id="btn-stat-mine" onclick="changeStatView('mine')" style="flex:1; padding: 8px 0; background: #eee; color:#333; border-radius: 8px; font-size: 14px;">我的</button>
+                    <button id="btn-stat-partner" onclick="changeStatView('partner')" style="flex:1; padding: 8px 0; background: #eee; color:#333; border-radius: 8px; font-size: 14px;">另一半</button>
+                </div>
+                
+                <div style="display: flex; justify-content: space-around; font-size: 14px; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                    <div>支出: <span id="query-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
+                    <div>收入: <span id="query-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
+                    <div>結餘: <span id="query-net" style="font-weight: bold;">$0</span></div>
+                </div>
+
+                <div style="width: 100%; overflow: hidden; position: relative;">
+                    <div id="chart-carousel" style="display: flex; width: 200%; transition: transform 0.3s ease; transform: translateX(0%);">
+                        <div style="width: 50%; flex-shrink: 0; box-sizing: border-box; padding: 0 5px;">
+                            <h4 style="margin-top: 0; margin-bottom: 5px; text-align: center;">🍩 支出比例分析</h4>
+                            <div style="text-align: center; font-size: 13px; color: #666; margin-bottom: 5px; height: 18px;">(各分類佔總支出的比例)</div>
+                            <p id="empty-expense-msg" style="text-align: center; color: #999; display: none; font-size: 14px;">查無支出紀錄</p>
+                            <div style="position: relative; height: 230px; width: 100%;">
+                                <canvas id="expenseChart"></canvas>
+                            </div>
+                        </div>
+
+                        <div style="width: 50%; flex-shrink: 0; box-sizing: border-box; padding: 0 5px;">
+                            <h4 style="margin-top: 0; margin-bottom: 5px; text-align: center;">⚖️ 收入與支出比例</h4>
+                            <div id="inout-ratio-text" style="text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 5px; height: 18px; color: #333;"></div>
+                            <p id="empty-inout-msg" style="text-align: center; color: #999; display: none; font-size: 14px;">查無紀錄</p>
+                            <div style="position: relative; height: 230px; width: 100%;">
+                                <canvas id="inOutChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 15px;">
+                    <span id="dot-0" onclick="switchChartSlide(0)" style="cursor: pointer; display: inline-block; width: 20px; height: 8px; background: #4CAF50; border-radius: 4px; margin: 0 3px; transition: 0.3s;"></span>
+                    <span id="dot-1" onclick="switchChartSlide(1)" style="cursor: pointer; display: inline-block; width: 8px; height: 8px; background: #ddd; border-radius: 50%; margin: 0 3px; transition: 0.3s;"></span>
+                </div>
+            </div>
+
+            <div class="split-view">
+                <div class="half"><h4>我的查詢</h4><ul id="query-list-mine"></ul></div>
+                <div class="half"><h4 id="query-partner-title">另一半查詢</h4><ul id="query-list-partner"></ul></div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('home', this)"><span class="nav-icon">🏠</span>記帳首頁</div>
+            <div class="nav-item" onclick="switchTab('stats', this)"><span class="nav-icon">📊</span>統計分析</div>
+        </nav>
+    </div>
+
+    <!-- 彈出操作選單 -->
+    <div id="action-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box;">
+        <div class="card" style="width: 100%; max-width: 300px; text-align: center; margin: 0;">
+            <h4 style="margin-top:0; margin-bottom: 20px;">請選擇操作</h4>
+            <button onclick="openEdit()" style="background-color: #2196F3; margin-bottom: 12px;">✏️ 修改金額</button>
+            <button onclick="confirmDelete()" style="background-color: #ff5252; margin-bottom: 12px;">❌ 刪除紀錄</button>
+            <button onclick="closeActionModal()" style="background-color: #eee; color: #333;">取消</button>
+        </div>
+    </div>
+
+    <!-- ⭐ 先載入你的設定檔 -->
+    <script src="config.js"></script>
+
+    <!-- ⭐ 再執行主要邏輯 -->
+    <script>
+        // 初始化 Firebase (吃 config.js 的資料)
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // 預設分類與記憶自訂分類
+        const categories = {
+            "餐飲": ["早餐", "午餐", "晚餐", "飲料", "零食", "買菜"],
+            "交通": ["捷運", "公車", "計程車", "加油", "停車費", "保養"],
+            "居家": ["日用品", "水電瓦斯", "房租/房貸", "電信費"],
+            "娛樂": ["電影", "訂閱費", "出遊", "網購", "麻將"],
+            "其他": ["自訂..."] 
+        };
+        let savedOthers = JSON.parse(localStorage.getItem("customOthers") || "[]");
+        savedOthers.forEach(item => { if (!categories["其他"].includes(item)) categories["其他"].push(item); });
+
+        // 全域變數
+        let currentNickname = ""; 
+        let unsubscribe = null;
+        let actionDocId = "";
+        let actionAmount = 0;
+        let currentUid = null;
+        let homeUnsubscribe = null, queryUnsubscribe = null, dailyUnsubscribe = null;
+        let expenseChart = null, inOutChart = null; 
+        let currentViewDate = new Date();
+        let currentStatView = 'all'; 
+        let statsData = {
+            all: { income: 0, expense: 0, categories: {} },
+            mine: { income: 0, expense: 0, categories: {} },
+            partner: { income: 0, expense: 0, categories: {}, name: "另一半" }
+        };
+
+        // UI 初始化
+        function initCategories() {
+            const mainSelect = document.getElementById("main-category");
+            mainSelect.innerHTML = "";
+            for (let main in categories) mainSelect.innerHTML += `<option value="${main}">${main}</option>`;
+            updateSubCategories();
+        }
+        function updateSubCategories() {
+            const mainValue = document.getElementById("main-category").value;
+            const subSelect = document.getElementById("sub-category");
+            subSelect.innerHTML = "";
+            categories[mainValue].forEach(sub => subSelect.innerHTML += `<option value="${sub}">${sub}</option>`);
+        }
+        function checkSpecialFields() {
+            const mainCat = document.getElementById("main-category").value;
+            const subCat = document.getElementById("sub-category").value;
+            document.getElementById("record-type").style.display = (subCat === "麻將" || mainCat === "其他") ? "block" : "none";
+            document.getElementById("custom-sub-cat").style.display = (mainCat === "其他" && subCat === "自訂...") ? "block" : "none";
+        }
+
+        // 登入相關邏輯
+        function convertToFakeEmail(text) {
+            let hex = '';
+            for (let i = 0; i < text.length; i++) hex += text.charCodeAt(i).toString(16);
+            return hex + "@myapp.fake";
+        }
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById("login-screen").classList.add("hidden");
+                document.getElementById("app-screen").classList.remove("hidden");
+                currentNickname = localStorage.getItem("myNickname") || "User";
+                document.getElementById("greeting").innerText = `Hello, ${currentNickname}`;
+                loadExpenses(user.uid); 
+            } else {
+                document.getElementById("login-screen").classList.remove("hidden");
+                document.getElementById("app-screen").classList.add("hidden");
+                if (unsubscribe) unsubscribe();
+            }
+        });
+        function register() {
+            const acc = document.getElementById("account").value.trim();
+            const pwd = document.getElementById("password").value;
+            const nick = document.getElementById("nickname").value.trim();
+            if (!acc || !pwd || !nick) return alert("帳號、密碼和暱稱都不能空白喔！");
+            if (pwd.length < 6) return alert("密碼至少 6 個字元！");
+            localStorage.setItem("myNickname", nick);
+            auth.createUserWithEmailAndPassword(convertToFakeEmail(acc), pwd)
+                .then(() => alert("註冊成功！")).catch(err => alert("註冊失敗：" + err.message));
+        }
+        function login() {
+            const acc = document.getElementById("account").value.trim();
+            const pwd = document.getElementById("password").value;
+            const nick = document.getElementById("nickname").value.trim();
+            if (!acc || !pwd || !nick) return alert("帳號、密碼和暱稱都不能空白喔！");
+            localStorage.setItem("myNickname", nick);
+            auth.signInWithEmailAndPassword(convertToFakeEmail(acc), pwd).catch(() => alert("登入失敗：檢查帳號密碼"));
+        }
+        function logout() { auth.signOut(); }
+        function formatAmountInput(input) {
+            let value = input.value.replace(/[^\d]/g, '');
+            input.value = value !== '' ? Number(value).toLocaleString('en-US') : '';
+        }
+
+        // 分頁與日期切換
+        function switchTab(tabName, element) {
+            document.getElementById('tab-home').classList.remove('active');
+            document.getElementById('tab-stats').classList.remove('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            element.classList.add('active');
+        }
+        function updateDateDisplay() {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const view = new Date(currentViewDate); view.setHours(0,0,0,0);
+            const yyyy = view.getFullYear(), mm = String(view.getMonth()+1).padStart(2,'0'), dd = String(view.getDate()).padStart(2,'0');
+            let dateText = `${yyyy}-${mm}-${dd}`;
+            if (view.getTime() === today.getTime()) dateText += " (今天)";
+            else if (view.getTime() === today.getTime() - 86400000) dateText += " (昨天)";
+            document.getElementById('current-view-date').innerText = dateText;
+            const nextBtn = document.getElementById('next-day-btn');
+            nextBtn.disabled = view >= today;
+            nextBtn.style.opacity = view >= today ? 0.5 : 1;
+        }
+        function prevDay() { currentViewDate.setDate(currentViewDate.getDate() - 1); loadHomeExpenses(currentUid); }
+        function nextDay() {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const view = new Date(currentViewDate); view.setHours(0,0,0,0);
+            if (view >= today) return; 
+            currentViewDate.setDate(currentViewDate.getDate() + 1); loadHomeExpenses(currentUid); 
+        }
+
+        // 滑動邏輯
+        let tsDaily = 0, teDaily = 0, tsChart = 0, teChart = 0;
+        function setupSwipes() {
+            const sDaily = document.getElementById('daily-swipe-container');
+            if(sDaily) {
+                sDaily.addEventListener('touchstart', e => { tsDaily = e.changedTouches[0].screenX; }, {passive: true});
+                sDaily.addEventListener('touchend', e => { teDaily = e.changedTouches[0].screenX; if(teDaily < tsDaily - 50) nextDay(); if(teDaily > tsDaily + 50) prevDay(); }, {passive: true});
+            }
+            const sChart = document.getElementById('chart-carousel');
+            if(sChart) {
+                sChart.addEventListener('touchstart', e => { tsChart = e.changedTouches[0].screenX; }, {passive: true});
+                sChart.addEventListener('touchend', e => { teChart = e.changedTouches[0].screenX; if(teChart < tsChart - 40) switchChartSlide(1); if(teChart > tsChart + 40) switchChartSlide(0); }, {passive: true});
+            }
+        }
+        function switchChartSlide(idx) {
+            document.getElementById('chart-carousel').style.transform = `translateX(-${idx * 50}%)`;
+            document.getElementById('dot-0').style.background = idx === 0 ? '#4CAF50' : '#ddd';
+            document.getElementById('dot-0').style.width = idx === 0 ? '20px' : '8px';
+            document.getElementById('dot-0').style.borderRadius = idx === 0 ? '4px' : '50%';
+            document.getElementById('dot-1').style.background = idx === 1 ? '#4CAF50' : '#ddd';
+            document.getElementById('dot-1').style.width = idx === 1 ? '20px' : '8px';
+            document.getElementById('dot-1').style.borderRadius = idx === 1 ? '4px' : '50%';
+        }
+
+        // 新增修改刪除
+        function addExpense() {
+            const mainCat = document.getElementById("main-category").value;
+            let subCat = document.getElementById("sub-category").value; 
+            const customSubCat = document.getElementById("custom-sub-cat").value.trim();
+            const rawAmount = Number(document.getElementById("amount").value.replace(/,/g, ''));
+            if (!rawAmount || rawAmount <= 0) return alert("請輸入金額！");
+            
+            if (mainCat === "其他" && subCat === "自訂...") {
+                if (!customSubCat) return alert("請輸入自訂名稱");
+                subCat = customSubCat; 
+                let saved = JSON.parse(localStorage.getItem("customOthers") || "[]");
+                if (!saved.includes(subCat)) { saved.push(subCat); localStorage.setItem("customOthers", JSON.stringify(saved)); categories["其他"].push(subCat); }
+            }
+            let type = (document.getElementById("sub-category").value === "麻將" || mainCat === "其他") ? document.getElementById("record-type").value : "expense";
+            currentViewDate = new Date(); loadHomeExpenses(auth.currentUser.uid); 
+            
+            db.collection("users").doc(auth.currentUser.uid).collection("expenses").add({
+                nickname: currentNickname, mainCat: mainCat, subCat: subCat, amount: rawAmount, type: type, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                document.getElementById("amount").value = ""; document.getElementById("custom-sub-cat").value = ""; 
+                if (mainCat === "其他") { updateSubCategories(); document.getElementById("sub-category").value = "自訂..."; checkSpecialFields(); }
+            }).catch(err => alert("失敗：" + err.message));
+        }
+        function openActionModal(id, amt) { actionDocId = id; actionAmount = amt; document.getElementById("action-modal").style.display = "flex"; }
+        function closeActionModal() { document.getElementById("action-modal").style.display = "none"; }
+        function openEdit() {
+            const tId = actionDocId; const tAmt = actionAmount; closeActionModal(); 
+            const newAmt = prompt("修改金額：", tAmt);
+            if (newAmt === null) return; 
+            const rawNew = Number(newAmt.replace(/[^\d]/g, ''));
+            if (!rawNew || rawNew <= 0) return alert("無效金額");
+            db.collection("users").doc(currentUid).collection("expenses").doc(tId).update({ amount: rawNew });
+        }
+        function confirmDelete() {
+            const tId = actionDocId; closeActionModal(); 
+            if (confirm("確定刪除？")) db.collection("users").doc(currentUid).collection("expenses").doc(tId).delete();
+        }
+
+        // 統計圖表
+        function changeStatView(view) {
+            currentStatView = view;
+            ['all', 'mine', 'partner'].forEach(v => {
+                const btn = document.getElementById('btn-stat-' + v);
+                if (v === view) { btn.style.background = '#4CAF50'; btn.style.color = 'white'; } 
+                else { btn.style.background = '#eee'; btn.style.color = '#333'; }
+            });
+            updateStatDisplay(); 
+        }
+        function updateStatDisplay() {
+            const data = statsData[currentStatView];
+            document.getElementById('query-expense').innerText = "$" + data.expense.toLocaleString('en-US');
+            document.getElementById('query-income').innerText = "$" + data.income.toLocaleString('en-US');
+            const net = data.income - data.expense;
+            const netEl = document.getElementById('query-net');
+            netEl.innerText = (net >= 0 ? "+$" : "-$") + Math.abs(net).toLocaleString('en-US');
+            netEl.style.color = net >= 0 ? "#4CAF50" : "#d32f2f";
+            renderExpenseChart(data.categories); renderInOutChart(data.income, data.expense);
+        }
+        function renderExpenseChart(cats) {
+            const ctx = document.getElementById('expenseChart'); const lbls = Object.keys(cats), dts = Object.values(cats);
+            if(expenseChart) expenseChart.destroy();
+            if(!lbls.length){ ctx.style.display='none'; document.getElementById('empty-expense-msg').style.display='block'; return;}
+            ctx.style.display='block'; document.getElementById('empty-expense-msg').style.display='none';
+            expenseChart = new Chart(ctx, { type: 'doughnut', data: { labels: lbls, datasets: [{ data: dts, backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8d6e63', '#26a69a'], borderWidth:2, borderColor:'#fff' }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 }, formatter: (v, ctx) => { let p = Math.round((v / ctx.chart._metasets[ctx.datasetIndex].total) * 100); return p < 5 ? null : p + '%'; } }, tooltip: { callbacks: { label: (c) => { let p = Math.round((c.raw / c.chart._metasets[c.datasetIndex].total) * 100); return `${c.label}: $${c.raw.toLocaleString()} (${p}%)`; } } } } } });
+        }
+        function renderInOutChart(inc, exp) {
+            const ctx = document.getElementById('inOutChart'), txt = document.getElementById('inout-ratio-text');
+            if(inOutChart) inOutChart.destroy();
+            if(inc===0 && exp===0){ ctx.style.display='none'; txt.innerText=""; document.getElementById('empty-inout-msg').style.display='block'; return;}
+            ctx.style.display='block'; document.getElementById('empty-inout-msg').style.display='none';
+            let lbls=[], dts=[], bg=[];
+            if(inc===0){ txt.innerText="⚠️ 無收入紀錄"; txt.style.color="#999"; lbls=['支出']; dts=[exp]; bg=['#d32f2f']; }
+            else{
+                const r = Math.round((exp/inc)*100); txt.innerText = `支出佔收入 ${r}%`;
+                if(exp<=inc){ txt.style.color="#4CAF50"; lbls=['支出','結餘']; dts=[exp, inc-exp]; bg=['#FF6384','#4CAF50']; }
+                else{ txt.style.color="#d32f2f"; txt.innerText=`⚠️ 超支！高達 ${r}%`; lbls=['已耗盡收入','超支金額']; dts=[inc, exp-inc]; bg=['#ff9800','#d32f2f']; }
+            }
+            inOutChart = new Chart(ctx, { type: 'doughnut', data: { labels: lbls, datasets: [{ data: dts, backgroundColor: bg, borderWidth:2, borderColor:'#fff' }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 }, formatter: (v, ctx) => { let p = Math.round((v / ctx.chart._metasets[ctx.datasetIndex].total) * 100); return p < 5 ? null : p + '%'; } }, tooltip: { callbacks: { label: c => `${c.label}: $${c.raw.toLocaleString()}` } } } } });
+        }
+
+        // 資料抓取
+        function loadDailySummary(uid) {
+            if(dailyUnsubscribe) dailyUnsubscribe();
+            const today = new Date(); today.setHours(0,0,0,0);
+            dailyUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp", ">=", today).onSnapshot(snap => {
+                let exp=0, inc=0;
+                snap.forEach(d => { const dt=d.data(); if((dt.type||"expense")==='income') inc+=dt.amount; else exp+=dt.amount; });
+                document.getElementById('daily-expense').innerText = "$"+exp.toLocaleString(); document.getElementById('daily-income').innerText = "$"+inc.toLocaleString();
+                const net = inc-exp; const netEl = document.getElementById('daily-net');
+                netEl.innerText = (net>=0?"+$":"-$") + Math.abs(net).toLocaleString(); netEl.style.color = net>=0?"#4CAF50":"#d32f2f";
+            });
+        }
+
+        function renderList(snap, lmId, lpId, ptId, isQ, kw="") {
+            const lm = document.getElementById(lmId), lp = document.getElementById(lpId);
+            if(isQ) {
+                document.getElementById('query-result-card').style.display = 'block';
+                statsData = { all: { income:0, expense:0, categories:{} }, mine: { income:0, expense:0, categories:{} }, partner: { income:0, expense:0, categories:{}, name:"另一半" } };
+            } else {
+                const sw = document.getElementById('daily-swipe-container'), msg = document.getElementById('empty-daily-msg');
+                if(snap.empty) { sw.style.display='none'; msg.style.display='block'; return; } 
+                else { sw.style.display='flex'; msg.style.display='none'; }
+            }
+            lm.innerHTML=""; lp.innerHTML=""; let fp = false;
+
+            snap.forEach(doc => {
+                const dt = doc.data();
+                if(isQ && kw) { const s = (dt.mainCat+dt.subCat+(dt.nickname||"")).toLowerCase(); if(!s.includes(kw.toLowerCase())) return; }
+                const type = dt.type||"expense", isMine = dt.nickname===currentNickname, amt = dt.amount, cat = dt.mainCat;
+                if(isQ) {
+                    if(type==='income') statsData.all.income+=amt; else { statsData.all.expense+=amt; statsData.all.categories[cat]=(statsData.all.categories[cat]||0)+amt; }
+                    if(isMine){ if(type==='income') statsData.mine.income+=amt; else { statsData.mine.expense+=amt; statsData.mine.categories[cat]=(statsData.mine.categories[cat]||0)+amt; } }
+                    else { statsData.partner.name = dt.nickname; if(type==='income') statsData.partner.income+=amt; else { statsData.partner.expense+=amt; statsData.partner.categories[cat]=(statsData.partner.categories[cat]||0)+amt; } }
+                }
+                const clr = type==="income"?"#4CAF50":"#d32f2f", sgn = type==="income"?"+":"";
+                let tm=""; if(dt.timestamp){ const dObj=dt.timestamp.toDate(); tm=` <span style="font-size:11px;color:#999;">(${String(dObj.getHours()).padStart(2,'0')}:${String(dObj.getMinutes()).padStart(2,'0')})</span>`; }
+                const btn = `<span style="margin-left:10px;cursor:pointer;color:#888;font-size:18px;font-weight:bold;" onclick="openActionModal('${doc.id}', ${amt})">⋯</span>`;
+                const li = `<li style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:5px;font-size:14px;"><span>${cat}-${dt.subCat}${tm}</span><div><span style="color:${clr};font-weight:bold;">${sgn}$${Number(amt).toLocaleString()}</span>${btn}</div></li>`;
+                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+(isQ?"的查詢":"紀錄"); fp=true; } }
+            });
+            if(!fp) document.getElementById(ptId).innerText = "另一半"+(isQ?"的查詢":"紀錄");
+            if(isQ){ document.getElementById('btn-stat-partner').innerText = statsData.partner.name; updateStatDisplay(); }
+            else { if(lm.innerHTML==="" && lp.innerHTML===""){ document.getElementById('daily-swipe-container').style.display='none'; document.getElementById('empty-daily-msg').style.display='block'; } }
+        }
+
+        function loadHomeExpenses(uid) {
+            updateDateDisplay(); if(homeUnsubscribe) homeUnsubscribe();
+            const s = new Date(currentViewDate); s.setHours(0,0,0,0); const e = new Date(currentViewDate); e.setHours(23,59,59,999);
+            homeUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp",">=",s).where("timestamp","<=",e).orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'list-mine', 'list-partner', 'partner-title', false));
+        }
+
+        function toggleDateInputs() { document.getElementById('date-range-inputs').style.display = document.getElementById('query-type').value==='custom'?'flex':'none'; }
+        
+        function executeQuery() {
+            if(!currentUid) return;
+            const type = document.getElementById('query-type').value, kw = document.getElementById('search-keyword').value.trim();
+            let ref = db.collection("users").doc(currentUid).collection("expenses");
+            if(type!=='all') {
+                let s, e;
+                if(type==='month') { const now = new Date(); s = new Date(now.getFullYear(), now.getMonth(), 1); e = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59, 999); }
+                else if(type==='custom') { const sv=document.getElementById('start-date').value, ev=document.getElementById('end-date').value; if(!sv||!ev) return alert("請選擇日期！"); s=new Date(sv+"T00:00:00"); e=new Date(ev+"T23:59:59"); }
+                ref = ref.where("timestamp",">=",s).where("timestamp","<=",e);
+            }
+            if(queryUnsubscribe) queryUnsubscribe();
+            queryUnsubscribe = ref.orderBy("timestamp","desc").onSnapshot(snap => renderList(snap, 'query-list-mine', 'query-list-partner', 'query-partner-title', true, kw));
+        }
+
+        function loadExpenses(uid) {
+            currentUid = uid; setupSwipes(); loadDailySummary(uid); loadHomeExpenses(uid);
+            document.getElementById('query-type').value = 'month'; toggleDateInputs(); executeQuery();
+            unsubscribe = () => { if(homeUnsubscribe) homeUnsubscribe(); if(queryUnsubscribe) queryUnsubscribe(); if(dailyUnsubscribe) dailyUnsubscribe(); };
+        }
+        
+        // 啟動 UI 初始化
+        initCategories();
+        setTimeout(checkSpecialFields, 100);
+    </script>
+</body>
+</html>
