@@ -71,6 +71,10 @@
 
             <div class="card">
                 <h4>新增一筆紀錄</h4>
+                
+                <!-- ⭐ 新增：記帳日期選擇器 -->
+                <input type="date" id="record-date" style="background-color: #f9f9f9; font-weight: bold; color: #333; margin-bottom: 12px;">
+                
                 <select id="main-category" onchange="updateSubCategories(); checkSpecialFields();"></select>
                 
                 <div style="display: flex; gap: 8px; margin-bottom: 12px;">
@@ -204,6 +208,7 @@
             </div>
         </div>
 
+        <!-- 底部導覽列 -->
         <nav class="bottom-nav">
             <div class="nav-item active" onclick="switchTab('home', this)"><span class="nav-icon">🏠</span>記帳首頁</div>
             <div class="nav-item" onclick="switchTab('stats', this)"><span class="nav-icon">📊</span>統計分析</div>
@@ -211,6 +216,7 @@
         </nav>
     </div>
 
+    <!-- 彈出操作選單 -->
     <div id="action-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box;">
         <div class="card" style="width: 100%; max-width: 300px; text-align: center; margin: 0;">
             <h4 style="margin-top:0; margin-bottom: 20px;">請選擇操作</h4>
@@ -260,6 +266,14 @@
             partner: { income: 0, expense: 0, saving: 0, categories: {}, name: "另一半" }
         };
 
+        // ⭐ 取得今天的日期字串 (預設填入用)
+        function getTodayString() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+        // 初始化日期欄位
+        document.getElementById("record-date").value = getTodayString();
+
         function initCategories() {
             const ms = document.getElementById("main-category"); ms.innerHTML = "";
             for (let m in categories) ms.innerHTML += `<option value="${m}">${m}</option>`;
@@ -270,7 +284,6 @@
             categories[mv].forEach(s => ss.innerHTML += `<option value="${s}">${s}</option>`);
         }
         
-        // ⭐ 自動顯示刪除按鈕
         function checkSpecialFields() {
             const mv = document.getElementById("main-category").value, sv = document.getElementById("sub-category").value;
             document.getElementById("record-type").style.display = (sv === "麻將" || mv === "其他") ? "block" : "none";
@@ -284,7 +297,6 @@
             }
         }
 
-        // ⭐ 刪除選項邏輯
         function deleteCustomItem() {
             const mv = document.getElementById("main-category").value;
             const sv = document.getElementById("sub-category").value;
@@ -369,6 +381,8 @@
         function addExpense() {
             const mc = document.getElementById("main-category").value; let sc = document.getElementById("sub-category").value; 
             const cSc = document.getElementById("custom-sub-cat").value.trim(); const rAmt = Number(document.getElementById("amount").value.replace(/,/g, ''));
+            const dateStr = document.getElementById("record-date").value; // ⭐ 讀取日期輸入
+            
             if (!rAmt || rAmt <= 0) return alert("請輸入金額！");
             
             if (sc === "自訂...") {
@@ -386,15 +400,32 @@
             if (mc === "儲蓄") type = "saving";
             else if (sc === "麻將" || mc === "其他") type = document.getElementById("record-type").value;
             
-            currentViewDate = new Date(); loadHomeExpenses(auth.currentUser.uid); 
+            // ⭐ 補記/預記時間處理邏輯
+            let tsToSave;
+            let targetViewDate = new Date();
+            
+            if (!dateStr || dateStr === getTodayString()) {
+                // 如果是今天，使用伺服器精準時間
+                tsToSave = firebase.firestore.FieldValue.serverTimestamp();
+            } else {
+                // 如果是過去或未來，組合自訂日期與目前時間
+                const [y, m, d] = dateStr.split('-');
+                targetViewDate = new Date(y, m - 1, d, targetViewDate.getHours(), targetViewDate.getMinutes(), targetViewDate.getSeconds());
+                tsToSave = firebase.firestore.Timestamp.fromDate(targetViewDate);
+            }
+            
+            // 將畫面強制跳轉至你記帳的日期
+            currentViewDate = targetViewDate; 
+            loadHomeExpenses(auth.currentUser.uid); 
             
             db.collection("users").doc(auth.currentUser.uid).collection("expenses").add({
-                nickname: currentNickname, mainCat: mc, subCat: sc, amount: rAmt, type: type, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                nickname: currentNickname, mainCat: mc, subCat: sc, amount: rAmt, type: type, timestamp: tsToSave
             }).then(() => {
                 document.getElementById("amount").value = ""; document.getElementById("custom-sub-cat").value = ""; 
                 if (mc === "其他" || mc === "儲蓄") { updateSubCategories(); document.getElementById("sub-category").value = "自訂..."; checkSpecialFields(); }
             }).catch(err => alert("失敗：" + err.message));
         }
+
         function openActionModal(id, amt) { actionDocId = id; actionAmount = amt; document.getElementById("action-modal").style.display = "flex"; }
         function closeActionModal() { document.getElementById("action-modal").style.display = "none"; }
         function openEdit() {
