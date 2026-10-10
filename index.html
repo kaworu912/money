@@ -33,7 +33,6 @@
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 讓四個指標在手機上顯示得更美觀 */
         .stat-grid { display: flex; justify-content: space-between; text-align: center; font-size: 13px; color: #666; }
         .stat-grid div { flex: 1; }
         .stat-val { display: block; font-size: 16px; margin-top: 4px; }
@@ -62,7 +61,6 @@
 
         <!-- ================= TAB 1: 記帳首頁 ================= -->
         <div id="tab-home" class="tab-content active">
-            <!-- ⭐ 新版：四欄式儀表板 -->
             <div class="card" style="background-color: #fff9c4; padding: 15px; margin-bottom: 20px;">
                 <h4 style="margin: 0 0 15px 0; color: #333;">📊 本日總計</h4>
                 <div class="stat-grid">
@@ -76,7 +74,13 @@
             <div class="card">
                 <h4>新增一筆紀錄</h4>
                 <select id="main-category" onchange="updateSubCategories(); checkSpecialFields();"></select>
-                <select id="sub-category" onchange="checkSpecialFields()"></select>
+                
+                <!-- ⭐ 修改：讓子選單跟刪除按鈕並排，只有選到記憶選項時才會顯示刪除按鈕 -->
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <select id="sub-category" onchange="checkSpecialFields()" style="margin: 0; flex: 1;"></select>
+                    <button id="delete-custom-btn" onclick="deleteCustomItem()" style="display: none; width: auto; background-color: #ff5252; margin: 0; padding: 0 15px; font-size: 14px;">❌ 刪除</button>
+                </div>
+                
                 <input type="text" id="custom-sub-cat" placeholder="輸入項目名稱 (例如：撿到錢)" style="display: none; background-color: #fff9c4;">
                 <select id="record-type" style="display: none; background-color: #e8f5e9; font-weight: bold;">
                     <option value="expense">支出 (花費/輸錢)</option>
@@ -125,7 +129,6 @@
                     <button id="btn-stat-partner" onclick="changeStatView('partner')" style="flex:1; padding: 8px 0; background: #eee; color:#333; border-radius: 8px; font-size: 14px;">另一半</button>
                 </div>
                 
-                <!-- ⭐ 新版：四欄式儀表板 -->
                 <div class="stat-grid" style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
                     <div>支出<span class="stat-val" id="query-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
                     <div>收入<span class="stat-val" id="query-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
@@ -190,7 +193,6 @@
 
             <div class="card" id="search-result-summary" style="display: none; padding-bottom: 15px;">
                 <h4 style="margin-top: 0; margin-bottom: 15px; text-align: center;">📈 搜尋總計</h4>
-                <!-- ⭐ 新版：四欄式儀表板 -->
                 <div class="stat-grid">
                     <div>支出<span class="stat-val" id="search-total-expense" style="color: #d32f2f; font-weight: bold;">$0</span></div>
                     <div>收入<span class="stat-val" id="search-total-income" style="color: #4CAF50; font-weight: bold;">$0</span></div>
@@ -231,7 +233,6 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const db = firebase.firestore();
 
-        // ⭐ 新增「儲蓄」分類
         const categories = {
             "餐飲": ["早餐", "午餐", "晚餐", "飲料", "零食", "買菜"],
             "交通": ["捷運", "公車", "計程車", "加油", "停車費", "保養"],
@@ -241,10 +242,8 @@
             "其他": ["自訂..."] 
         };
         
-        // ⭐ 智慧記憶相容更新：讓自訂項目能分開存於「其他」或「儲蓄」
         let savedOthers = JSON.parse(localStorage.getItem("customOthers") || "{}");
         if (Array.isArray(savedOthers)) {
-            // 將舊版的陣列轉換為新的物件格式
             savedOthers = { "其他": savedOthers, "儲蓄": [] };
             localStorage.setItem("customOthers", JSON.stringify(savedOthers));
         }
@@ -260,7 +259,6 @@
         let expenseChart = null, inOutChart = null, currentViewDate = new Date();
         let currentStatView = 'all'; 
         
-        // ⭐ 統計資料結構新增 saving (存錢)
         let statsData = {
             all: { income: 0, expense: 0, saving: 0, categories: {} },
             mine: { income: 0, expense: 0, saving: 0, categories: {} },
@@ -276,10 +274,43 @@
             const mv = document.getElementById("main-category").value, ss = document.getElementById("sub-category"); ss.innerHTML = "";
             categories[mv].forEach(s => ss.innerHTML += `<option value="${s}">${s}</option>`);
         }
+        
+        // ⭐ 修改：檢查目前選到的項目是不是「曾經記憶的項目」，如果是就顯示刪除按鈕
         function checkSpecialFields() {
             const mv = document.getElementById("main-category").value, sv = document.getElementById("sub-category").value;
             document.getElementById("record-type").style.display = (sv === "麻將" || mv === "其他") ? "block" : "none";
             document.getElementById("custom-sub-cat").style.display = (sv === "自訂...") ? "block" : "none";
+
+            // 判斷是否為記憶選項並顯示刪除按鈕
+            let saved = JSON.parse(localStorage.getItem("customOthers") || "{}");
+            if (saved[mv] && saved[mv].includes(sv)) {
+                document.getElementById("delete-custom-btn").style.display = "block";
+            } else {
+                document.getElementById("delete-custom-btn").style.display = "none";
+            }
+        }
+
+        // ⭐ 新增：刪除記憶項目的函數
+        function deleteCustomItem() {
+            const mv = document.getElementById("main-category").value;
+            const sv = document.getElementById("sub-category").value;
+            
+            if (confirm(`確定要從選單中刪除「${sv}」嗎？\n(放心，過去記過的帳不會消失)`)) {
+                // 從 localStorage 中刪除
+                let saved = JSON.parse(localStorage.getItem("customOthers") || "{}");
+                if (saved[mv]) {
+                    saved[mv] = saved[mv].filter(item => item !== sv);
+                    localStorage.setItem("customOthers", JSON.stringify(saved));
+                }
+                
+                // 從目前的畫面記憶體中刪除
+                categories[mv] = categories[mv].filter(item => item !== sv);
+                
+                // 刷新子選單
+                updateSubCategories();
+                document.getElementById("sub-category").value = categories[mv][0]; // 自動選回第一個選項
+                checkSpecialFields();
+            }
         }
 
         function convertToFakeEmail(text) {
@@ -351,7 +382,6 @@
             const cSc = document.getElementById("custom-sub-cat").value.trim(); const rAmt = Number(document.getElementById("amount").value.replace(/,/g, ''));
             if (!rAmt || rAmt <= 0) return alert("請輸入金額！");
             
-            // ⭐ 判斷並寫入記憶體
             if (sc === "自訂...") {
                 if (!cSc) return alert("請輸入自訂名稱"); sc = cSc; 
                 let saved = JSON.parse(localStorage.getItem("customOthers") || "{}");
@@ -363,7 +393,6 @@
                 }
             }
 
-            // ⭐ 若為儲蓄，系統自動設為 saving 型態；其他的按照下拉選單或預設 expense
             let type = "expense";
             if (mc === "儲蓄") type = "saving";
             else if (sc === "麻將" || mc === "其他") type = document.getElementById("record-type").value;
@@ -387,7 +416,7 @@
         }
         function confirmDelete() {
             const tId = actionDocId; closeActionModal(); 
-            if (confirm("確定刪除？")) db.collection("users").doc(currentUid).collection("expenses").doc(tId).delete();
+            if (confirm("確定刪除這筆紀錄嗎？")) db.collection("users").doc(currentUid).collection("expenses").doc(tId).delete();
         }
 
         function changeStatView(view) {
@@ -399,7 +428,6 @@
             }); updateStatDisplay(); 
         }
         
-        // ⭐ 更新四個維度的統計數字顯示
         function updateStatDisplay() {
             const d = statsData[currentStatView];
             document.getElementById('query-expense').innerText = "$" + d.expense.toLocaleString('en-US'); 
@@ -432,7 +460,6 @@
             inOutChart = new Chart(ctx, { type: 'doughnut', data: { labels: lbls, datasets: [{ data: dts, backgroundColor: bg, borderWidth:2, borderColor:'#fff' }] }, plugins: [ChartDataLabels], options: { responsive: true, maintainAspectRatio: false, cutout: '55%', plugins: { legend: { position: 'bottom' }, datalabels: { color: '#fff', font: { weight: 'bold', size: 14 }, formatter: (v, ctx) => { let p = Math.round((v / ctx.chart._metasets[ctx.datasetIndex].total) * 100); return p < 5 ? null : p + '%'; } }, tooltip: { callbacks: { label: c => `${c.label}: $${c.raw.toLocaleString()}` } } } } });
         }
 
-        // ⭐ 日常總計加入存錢的計算
         function loadDailySummary(uid) {
             if(dailyUnsubscribe) dailyUnsubscribe(); const t = new Date(); t.setHours(0,0,0,0);
             dailyUnsubscribe = db.collection("users").doc(uid).collection("expenses").where("timestamp", ">=", t).onSnapshot(snap => {
@@ -449,7 +476,6 @@
             });
         }
 
-        // ⭐ RenderList 核心過濾與計算邏輯
         function renderList(snap, lmId, lpId, ptId, mode, kw="") {
             const lm = document.getElementById(lmId), lp = document.getElementById(lpId);
             
@@ -471,7 +497,6 @@
                 if(mode === 'search' && kw) { const s = (dt.mainCat+dt.subCat+(dt.nickname||"")).toLowerCase(); if(!s.includes(kw.toLowerCase())) return; }
                 const type = dt.type||"expense", isMine = dt.nickname===currentNickname, amt = dt.amount, cat = dt.mainCat;
                 
-                // ⭐ 將資料依據 type (income, saving, expense) 寫入不同的欄位
                 if(mode === 'stats') {
                     if(type==='income') statsData.all.income+=amt; 
                     else if(type==='saving') statsData.all.saving+=amt;
@@ -493,17 +518,16 @@
                     else searchExp += amt;
                 }
 
-                // 顏色識別：綠色(收入)，藍色(存錢)，紅色(支出)
                 const clr = type==="income" ? "#4CAF50" : (type==="saving" ? "#2196F3" : "#d32f2f");
                 const sgn = type==="income" ? "+" : ""; 
                 let tm=""; if(dt.timestamp){ const dObj=dt.timestamp.toDate(); tm=` <span style="font-size:11px;color:#999;">(${String(dObj.getHours()).padStart(2,'0')}:${String(dObj.getMinutes()).padStart(2,'0')})</span>`; }
                 const btn = `<span style="margin-left:10px;cursor:pointer;color:#888;font-size:18px;font-weight:bold;" onclick="openActionModal('${doc.id}', ${amt})">⋯</span>`;
                 const li = `<li style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:5px;font-size:14px;"><span>${cat}-${dt.subCat}${tm}</span><div><span style="color:${clr};font-weight:bold;">${sgn}$${Number(amt).toLocaleString()}</span>${btn}</div></li>`;
                 
-                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+(mode==='search'?"搜尋":"明細"); fp=true; } }
+                if(isMine) lm.innerHTML+=li; else { lp.innerHTML+=li; if(!fp){ document.getElementById(ptId).innerText = dt.nickname+(mode==='search'?"的搜尋":"明細"); fp=true; } }
             });
             
-            if(!fp) document.getElementById(ptId).innerText = "另一半" + (mode==='search'?"搜尋":"明細");
+            if(!fp) document.getElementById(ptId).innerText = "另一半" + (mode==='search'?"的搜尋":"明細");
 
             if(mode === 'stats'){ 
                 document.getElementById('btn-stat-partner').innerText = statsData.partner.name; updateStatDisplay(); 
